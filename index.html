@@ -1,0 +1,2075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f0f10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<title>GNPA Scorecard</title>
+<style>
+  :root {
+    --fs-xs: clamp(10px, 2.6vw, 12px);
+    --fs-sm: clamp(12px, 3.2vw, 14px);
+    --fs-base: clamp(14px, 3.7vw, 16px);
+    --fs-md: clamp(15px, 4vw, 17px);
+    --fs-lg: clamp(17px, 4.8vw, 20px);
+    --fs-xl: clamp(20px, 5.5vw, 24px);
+    --fs-xxl: clamp(28px, 8vw, 40px);
+    --sp-1: clamp(4px, 1vw, 6px);
+    --sp-2: clamp(6px, 1.6vw, 10px);
+    --sp-3: clamp(10px, 2.5vw, 14px);
+    --sp-4: clamp(12px, 3.2vw, 18px);
+    --sp-5: clamp(16px, 4vw, 24px);
+    --sp-6: clamp(20px, 5vw, 32px);
+    --tap-target: 44px;
+    --bg: #0f0f10;
+    --surface: #1a1a1c;
+    --surface-2: #232326;
+    --border: #2e2e32;
+    --border-strong: #3d3d42;
+    --text: #ececec;
+    --text-secondary: #a1a1a6;
+    --text-tertiary: #6e6e73;
+    --accent: #5a8dee;
+    --accent-bg: rgba(90, 141, 238, 0.15);
+    --accent-border: rgba(90, 141, 238, 0.5);
+    --away: #d4a64a;
+    --away-bg: rgba(212, 166, 74, 0.15);
+    --away-border: rgba(212, 166, 74, 0.5);
+    --danger: #e8615b;
+    --success: #5ac876;
+    --success-bg: rgba(90, 200, 118, 0.15);
+    --radius: clamp(8px, 2vw, 12px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+  html { background: var(--bg); height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: var(--fs-base);
+    line-height: 1.5;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overscroll-behavior: none;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  #app {
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: var(--sp-4) var(--sp-3) var(--sp-6);
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  @media (min-width: 768px) { #app { padding: var(--sp-5) var(--sp-5) var(--sp-6); } }
+
+  input, button, select, textarea {
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--sp-2);
+    outline: none;
+    min-height: var(--tap-target);
+    min-width: 0;
+  }
+  input { -webkit-appearance: none; appearance: none; }
+  select {
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%23a1a1a6' d='M6 9L1 4h10z'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+    width: 100%;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  button { cursor: pointer; user-select: none; touch-action: manipulation; }
+  button:hover:not(:disabled) { background: var(--surface-2); }
+  button:active:not(:disabled) { transform: scale(0.98); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ============ LOGO HEADER ============ */
+  .brand-header {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    margin-bottom: var(--sp-4);
+    padding-top: var(--sp-2);
+  }
+  .brand-center {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    justify-self: center;
+  }
+  .brand-logo {
+    width: clamp(40px, 11vw, 56px);
+    height: clamp(40px, 11vw, 56px);
+    flex-shrink: 0;
+  }
+  .brand-text { display: flex; flex-direction: column; align-items: flex-start; }
+  .brand-title { font-size: var(--fs-lg); font-weight: 600; color: var(--text); line-height: 1.1; }
+  .brand-sub { font-size: var(--fs-xs); color: var(--text-secondary); margin-top: 2px; letter-spacing: 0.5px; text-transform: uppercase; }
+  .brand-trophy {
+    grid-column: 3;
+    justify-self: end;
+    width: clamp(40px, 11vw, 48px);
+    height: clamp(40px, 11vw, 48px);
+    padding: 0;
+    font-size: clamp(20px, 5.5vw, 26px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .brand-trophy:hover { background: var(--surface-2); }
+
+  .header { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); margin-bottom: var(--sp-2); flex-wrap: wrap; }
+  .title { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
+  .score-mini { font-size: var(--fs-sm); color: var(--text-secondary); }
+
+  .tabs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3px;
+    background: var(--surface);
+    padding: 3px;
+    border-radius: var(--radius);
+    margin-bottom: var(--sp-5);
+  }
+  .tab {
+    padding: var(--sp-2) var(--sp-1);
+    font-size: var(--fs-xs);
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: calc(var(--radius) - 3px);
+    font-weight: 400;
+    min-height: var(--tap-target);
+  }
+  .tab.active { background: var(--surface-2); color: var(--text); font-weight: 500; }
+
+  .field-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-2); margin-bottom: var(--sp-3); }
+  @media (max-width: 360px) { .field-row.stackable { grid-template-columns: minmax(0, 1fr); } }
+  .field { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
+  .field-label { font-size: var(--fs-xs); color: var(--text-secondary); }
+  .field input { width: 100%; }
+
+  .team-card { background: var(--surface); border: 1px solid var(--border); padding: var(--sp-3); border-radius: var(--radius); min-width: 0; }
+  .team-card .field-label { margin-bottom: var(--sp-1); }
+  .team-card input { width: 100%; margin-bottom: var(--sp-1); }
+  .team-card input:last-child { margin-bottom: 0; }
+
+  .players-card { background: var(--surface); border: 1px solid var(--border); padding: var(--sp-3); border-radius: var(--radius); margin-top: var(--sp-3); }
+  .players-section-title { font-size: var(--fs-sm); font-weight: 500; margin-bottom: var(--sp-3); color: var(--text); }
+  .players-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-2); }
+  .players-col { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+  .player-row { display: flex; align-items: center; gap: var(--sp-1); min-width: 0; }
+  .player-letter { width: clamp(18px, 4.5vw, 24px); font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); text-align: center; flex-shrink: 0; }
+  .player-row input { flex: 1; min-width: 0; width: 100%; padding-left: var(--sp-2); padding-right: var(--sp-2); }
+
+  .actions { display: flex; gap: var(--sp-2); margin-top: var(--sp-4); }
+  .actions button { flex: 1; padding: var(--sp-3); font-size: var(--fs-sm); }
+  .btn-primary { background: var(--accent-bg); border-color: var(--accent-border); color: var(--accent); font-weight: 500; }
+  .btn-success { background: var(--success-bg); border-color: rgba(90, 200, 118, 0.5); color: var(--success); font-weight: 500; }
+  .btn-danger { color: var(--danger); }
+
+  .round-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-3); }
+  .round-title { font-size: var(--fs-md); font-weight: 500; color: var(--text); }
+  .round-nav button { padding: var(--sp-2) var(--sp-4); font-size: var(--fs-md); min-width: var(--tap-target); }
+
+  .frame-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-2); }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: var(--sp-2);
+    padding: 0 var(--sp-1);
+  }
+  .section-title { font-size: var(--fs-sm); font-weight: 600; color: var(--text); text-transform: uppercase; letter-spacing: 0.5px; }
+  .section-score { font-size: var(--fs-sm); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .frame-label { font-size: var(--fs-xs); color: var(--text-tertiary); margin-bottom: var(--sp-1); text-transform: uppercase; letter-spacing: 0.5px; }
+  .frame-pick { display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--sp-1); align-items: stretch; }
+  .pick-btn { padding: var(--sp-3) var(--sp-2); font-size: var(--fs-sm); border-radius: var(--radius); min-height: var(--tap-target); word-break: break-word; line-height: 1.3; }
+  .pick-btn.left { text-align: left; }
+  .pick-btn.right { text-align: right; }
+  .pick-btn.selected-home { background: var(--accent-bg); border-color: var(--accent-border); color: var(--accent); font-weight: 500; }
+  .pick-btn.selected-away { background: var(--away-bg); border-color: var(--away-border); color: var(--away); font-weight: 500; }
+  .vs { font-size: var(--fs-xs); color: var(--text-tertiary); padding: 0 var(--sp-1); align-self: center; }
+  .clear-btn { margin-top: var(--sp-1); padding: var(--sp-1) var(--sp-3); font-size: var(--fs-xs); color: var(--text-secondary); background: transparent; border-color: transparent; min-height: 32px; }
+
+  .grid-help { font-size: var(--fs-xs); color: var(--text-secondary); margin-bottom: var(--sp-2); text-align: center; }
+  .grid-wrap { width: 100%; display: flex; justify-content: center; }
+  .result-grid { border-collapse: collapse; font-size: var(--fs-xs); }
+  .result-grid th, .result-grid td { padding: 0; text-align: center; }
+  .result-grid th { color: var(--text-secondary); font-weight: 500; padding: var(--sp-1) var(--sp-2); }
+  .result-grid .label { padding: var(--sp-1) var(--sp-2); font-weight: 600; color: var(--text-secondary); }
+  .result-cell { width: clamp(36px, 11vw, 56px); height: clamp(36px, 11vw, 56px); border: 1px solid var(--border); cursor: pointer; font-size: var(--fs-md); color: var(--text-tertiary); background: transparent; }
+  .result-cell.home { background: var(--accent-bg); color: var(--accent); }
+  .result-cell.away { background: var(--away-bg); color: var(--away); }
+  .total-cell { font-size: var(--fs-xs); color: var(--text-secondary); padding: var(--sp-1) var(--sp-2); }
+  .legend { display: flex; justify-content: center; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-3); font-size: var(--fs-xs); color: var(--text-secondary); }
+  .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+
+  /* ============ 3-MAN CARD-STYLE GRID ============ */
+  .tm-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp-3); margin-bottom: var(--sp-3); }
+  .tm-section-title { font-size: var(--fs-sm); font-weight: 600; color: var(--text); margin-bottom: var(--sp-2); text-transform: uppercase; letter-spacing: 0.5px; }
+  .tm-table { width: 100%; border-collapse: collapse; font-size: var(--fs-xs); }
+  .tm-table td { padding: var(--sp-1) var(--sp-1); border-bottom: 1px solid var(--border); }
+  .tm-table tr:last-child td { border-bottom: none; }
+  .tm-pos { width: clamp(28px, 8vw, 40px); font-weight: 600; color: var(--text-secondary); text-align: center; flex-shrink: 0; }
+  .tm-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 0; }
+  .tm-name.tm-right { text-align: right; }
+  .tm-score { width: clamp(24px, 6vw, 32px); text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-tertiary); }
+  .tm-score.home { color: var(--accent); }
+  .tm-score.away { color: var(--away); }
+  .tm-vs { width: clamp(20px, 5vw, 28px); text-align: center; font-size: var(--fs-xs); color: var(--text-tertiary); }
+  .tm-subtotal { display: flex; justify-content: space-between; padding-top: var(--sp-2); margin-top: var(--sp-2); border-top: 1px solid var(--border); font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+  .tm-grand { display: flex; justify-content: space-between; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp-3) var(--sp-4); font-size: var(--fs-md); font-weight: 600; }
+  .tm-grand span:last-child { font-size: var(--fs-lg); color: var(--accent); font-variant-numeric: tabular-nums; }
+
+  /* ============ JUNIORS COUNTER UI ============ */
+  .juniors-meta {
+    text-align: center;
+    font-size: var(--fs-xs);
+    color: var(--text-secondary);
+    margin-bottom: var(--sp-3);
+  }
+  .juniors-game {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: var(--sp-2);
+    align-items: stretch;
+    margin-bottom: var(--sp-3);
+  }
+  .juniors-side {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--sp-3);
+    text-align: center;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .juniors-side.winner {
+    border-color: var(--accent-border);
+    background: var(--accent-bg);
+  }
+  .juniors-side.winner:nth-child(3) {
+    border-color: var(--away-border);
+    background: var(--away-bg);
+  }
+  .juniors-name {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 2px;
+    word-break: break-word;
+    line-height: 1.2;
+  }
+  .juniors-pos {
+    font-size: var(--fs-xs);
+    color: var(--text-tertiary);
+    margin-bottom: var(--sp-3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .juniors-counter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-1);
+  }
+  .counter-btn {
+    width: clamp(40px, 11vw, 52px);
+    height: clamp(40px, 11vw, 52px);
+    padding: 0;
+    font-size: var(--fs-xl);
+    font-weight: 600;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .counter-btn.plus {
+    background: var(--accent-bg);
+    border-color: var(--accent-border);
+    color: var(--accent);
+  }
+  .counter-btn.minus {
+    color: var(--text-secondary);
+  }
+  .counter-value {
+    width: clamp(48px, 14vw, 72px);
+    font-size: clamp(32px, 9vw, 44px);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    color: var(--text);
+  }
+  .counter-value.home { color: var(--accent); }
+  .counter-value.away { color: var(--away); }
+  .juniors-vs {
+    align-self: center;
+    font-size: var(--fs-xs);
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .juniors-winner {
+    text-align: center;
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--radius);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    margin-bottom: var(--sp-2);
+  }
+  .juniors-winner.home { background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent-border); }
+  .juniors-winner.away { background: var(--away-bg); color: var(--away); border: 1px solid var(--away-border); }
+
+  .summary-scores { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+  .score-card { background: var(--surface); border: 1px solid var(--border); padding: var(--sp-4); border-radius: var(--radius); text-align: center; }
+  .score-card-label { font-size: var(--fs-xs); color: var(--text-secondary); margin-bottom: var(--sp-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .score-card-value { font-size: var(--fs-xxl); font-weight: 600; color: var(--text); line-height: 1; }
+  .summary-status { font-size: var(--fs-xs); color: var(--text-secondary); text-align: center; margin-bottom: var(--sp-4); }
+  .summary-cols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+  @media (max-width: 360px) { .summary-cols { grid-template-columns: 1fr; } }
+  .summary-col-title { font-size: var(--fs-xs); font-weight: 500; color: var(--text-secondary); margin-bottom: var(--sp-2); }
+  .summary-row { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-1); padding: var(--sp-1) 0; font-size: var(--fs-xs); border-bottom: 1px solid var(--border); }
+  .summary-row .name-wrap { display: flex; align-items: center; gap: var(--sp-1); min-width: 0; flex: 1; }
+  .summary-row strong { font-weight: 600; color: var(--text-secondary); flex-shrink: 0; }
+  .summary-row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .summary-row .wl { color: var(--text-secondary); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+  .submit-section { margin-top: var(--sp-4); padding-top: var(--sp-4); border-top: 1px solid var(--border); }
+  .submit-status { font-size: var(--fs-xs); text-align: center; margin-top: var(--sp-2); min-height: 16px; }
+  .submit-status.ok { color: var(--success); }
+  .submit-status.err { color: var(--danger); }
+  .submit-status.info { color: var(--text-secondary); }
+
+  .export-status { font-size: var(--fs-xs); color: var(--text-secondary); text-align: center; margin-top: var(--sp-2); min-height: 16px; }
+
+  .install-hint { margin-top: var(--sp-5); padding: var(--sp-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--fs-xs); color: var(--text-tertiary); line-height: 1.5; }
+
+  /* ============ MODAL ============ */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: var(--sp-4);
+  }
+  .modal-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--sp-4);
+    max-width: 420px;
+    width: 100%;
+  }
+  .modal-title { font-size: var(--fs-md); font-weight: 600; margin-bottom: var(--sp-2); }
+  .modal-body { font-size: var(--fs-sm); color: var(--text-secondary); margin-bottom: var(--sp-4); line-height: 1.5; }
+  .modal-actions { display: flex; gap: var(--sp-2); }
+  .modal-actions button { flex: 1; padding: var(--sp-3); }
+
+  /* ============ STANDINGS OVERLAY ============ */
+  .standings-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 900;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .standings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .standings-title { font-size: var(--fs-lg); font-weight: 600; color: var(--text); }
+  .standings-close {
+    width: var(--tap-target);
+    height: var(--tap-target);
+    padding: 0;
+    font-size: var(--fs-xl);
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    line-height: 1;
+  }
+  .standings-controls {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .standings-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+    background: var(--surface);
+    padding: 3px;
+    border-radius: var(--radius);
+  }
+  .standings-toggle button {
+    padding: var(--sp-2);
+    font-size: var(--fs-sm);
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: calc(var(--radius) - 3px);
+    min-height: 38px;
+  }
+  .standings-toggle button.active {
+    background: var(--surface-2);
+    color: var(--text);
+    font-weight: 500;
+  }
+  .standings-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--sp-3) var(--sp-4) var(--sp-6);
+  }
+  .standings-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-xs);
+  }
+  .standings-table th {
+    padding: var(--sp-2) var(--sp-1);
+    color: var(--text-secondary);
+    font-weight: 500;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: sticky;
+    top: 0;
+  }
+  .standings-table th.num { text-align: right; }
+  .standings-table td {
+    padding: var(--sp-2) var(--sp-1);
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  .standings-table td.num { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+  .standings-table td.pos { color: var(--text-tertiary); width: 32px; }
+  .standings-table td.name {
+    font-weight: 500;
+    word-break: break-word;
+    line-height: 1.3;
+  }
+  .standings-table td.subname {
+    color: var(--text-tertiary);
+    font-size: var(--fs-xs);
+  }
+  .standings-table tr:nth-child(odd) td { background: rgba(255,255,255,0.02); }
+  .standings-table td.pct { font-weight: 600; color: var(--accent); }
+  .standings-empty {
+    padding: var(--sp-6) var(--sp-4);
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: var(--fs-sm);
+    line-height: 1.6;
+  }
+  .standings-loading { color: var(--text-secondary); padding: var(--sp-4); text-align: center; }
+
+  .suggest-list { display: flex; flex-direction: column; gap: var(--sp-1); margin-bottom: var(--sp-2); }
+  .suggest-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-2);
+    padding: var(--sp-2);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: opacity 0.2s;
+  }
+  .suggest-row.applied { opacity: 0.5; }
+  .suggest-info { min-width: 0; flex: 1; }
+  .suggest-pos { font-size: var(--fs-xs); color: var(--text-tertiary); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .suggest-names { display: flex; align-items: center; gap: var(--sp-1); font-size: var(--fs-sm); flex-wrap: wrap; }
+  .suggest-typed { color: var(--danger); text-decoration: line-through; }
+  .suggest-arrow { color: var(--text-tertiary); }
+  .suggest-fix { color: var(--success); font-weight: 500; }
+  .suggest-apply {
+    padding: var(--sp-1) var(--sp-3);
+    font-size: var(--fs-xs);
+    background: var(--accent-bg);
+    border-color: var(--accent-border);
+    color: var(--accent);
+    flex-shrink: 0;
+    min-height: 32px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div style="color:#ececec;padding:20px;text-align:center;">
+    <h2 style="margin-bottom:12px;">GNPA Scorecard</h2>
+    <p style="color:#a1a1a6;margin-bottom:16px;">Loading...</p>
+    <p style="color:#6e6e73;font-size:12px;">If this stays, JavaScript is blocked. Open in Chrome, Safari, Edge, or Firefox.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  var app = document.getElementById('app');
+  var HOME_LETTERS = ['A','B','C','D','E','F'];
+  var STORAGE_KEY = 'gnpa_match_v5';
+
+  // Hardcoded league submission endpoint
+  var LEAGUE_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxOZ-8jH0bL-DjbWsLZx59sxUXR8PHlIS3mEr0Sv4YUhQWRVygt1Qt0zdlwCQqIsPqzJQ/exec';
+
+  // League definitions. Most use 'rotation' format (NxN grid).
+  // 3-Man uses 'threeman' format: 9 fixed singles + 3 doubles.
+  // Juniors uses 'juniors' format: 4 race-to-5 games.
+  var LEAGUES = [
+    { name: 'Vets Tier 1', format: 'rotation', teamSize: 6 },
+    { name: 'Vets Tier 2', format: 'rotation', teamSize: 6 },
+    { name: 'Super North', format: 'rotation', teamSize: 6 },
+    { name: 'Super South', format: 'rotation', teamSize: 6 },
+    { name: 'Premier',     format: 'rotation', teamSize: 6 },
+    { name: 'Ladies',      format: 'rotation', teamSize: 6 },
+    { name: 'Tshwane',     format: 'rotation', teamSize: 5 },
+    { name: '3-Man',       format: 'threeman', teamSize: 3 },
+    { name: 'Juniors',     format: 'juniors',  teamSize: 2 }
+  ];
+
+  // 3-Man fixed singles order
+  var THREEMAN_SINGLES = [
+    [0,0],[1,1],[2,2],
+    [0,1],[1,2],[2,0],
+    [0,2],[1,0],[2,1]
+  ];
+  var THREEMAN_DOUBLES = [
+    { home:[0,1], away:[0,1] },
+    { home:[1,2], away:[1,2] },
+    { home:[0,2], away:[0,2] }
+  ];
+
+  // Juniors fixed game order: [homeIdx, awayIdx]
+  // 1) H1vA1, 2) H2vA2, 3) H1vA2, 4) H2vA1
+  var JUNIORS_GAMES = [
+    [0,0],[1,1],[0,1],[1,0]
+  ];
+  var JUNIORS_RACE_TO = 5;
+
+  function getLeagueConfig(name){
+    for(var i=0;i<LEAGUES.length;i++){
+      if(LEAGUES[i].name === name) return LEAGUES[i];
+    }
+    return null;
+  }
+
+  function teamSize(){
+    var cfg = getLeagueConfig(state.league);
+    return cfg ? cfg.teamSize : 6;
+  }
+
+  function leagueFormat(){
+    var cfg = getLeagueConfig(state.league);
+    return cfg ? cfg.format : 'rotation';
+  }
+
+  // GNPA logo as inline SVG (red flower on shield)
+  var LOGO_SVG = '<svg class="brand-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+    '<path d="M15 10 L85 10 L85 55 Q85 80 50 95 Q15 80 15 55 Z" fill="#fff" stroke="#1f6fc4" stroke-width="2"/>' +
+    '<path d="M50 60 Q48 75 45 88" stroke="#2a8a3a" stroke-width="3" fill="none" stroke-linecap="round"/>' +
+    '<g transform="translate(50,38)">' +
+      '<g fill="#d83a2e">' +
+        '<ellipse cx="0" cy="-18" rx="3" ry="14"/>' +
+        '<ellipse cx="0" cy="-18" rx="3" ry="14" transform="rotate(30)"/>' +
+        '<ellipse cx="0" cy="-18" rx="3" ry="14" transform="rotate(60)"/>' +
+        '<ellipse cx="0" cy="-18" rx="3" ry="14" transform="rotate(90)"/>' +
+        '<ellipse cx="0" cy="-18" rx="3" ry="14" transform="rotate(120)"/>' +
+        '<ellipse cx="0" cy="-18" rx="3" ry="14" transform="rotate(150)"/>' +
+        '<ellipse cx="0" cy="-18" rx="3" ry="14" transform="rotate(180)"/>' +
+        '<ellipse cx="0" cy="-18" rx="3" ry="14" transform="rotate(210)"/>' +
+        '<ellipse cx="0" cy="-18" rx="3" ry="14" transform="rotate(240)"/>' +
+        '<ellipse cx="0" cy="-18" rx="3" ry="14" transform="rotate(270)"/>' +
+        '<ellipse cx="0" cy="-18" rx="3" ry="14" transform="rotate(300)"/>' +
+        '<ellipse cx="0" cy="-18" rx="3" ry="14" transform="rotate(330)"/>' +
+      '</g>' +
+      '<circle cx="0" cy="0" r="8" fill="#f5d020"/>' +
+      '<circle cx="-3" cy="-2" r="1.2" fill="#3a2a0a"/>' +
+      '<circle cx="3" cy="-2" r="1.2" fill="#3a2a0a"/>' +
+      '<circle cx="-4" cy="2" r="1.2" fill="#3a2a0a"/>' +
+      '<circle cx="0" cy="3" r="1.2" fill="#3a2a0a"/>' +
+      '<circle cx="4" cy="2" r="1.2" fill="#3a2a0a"/>' +
+    '</g>' +
+    '</svg>';
+
+  function defaultState(){
+    return {
+      date: new Date().toISOString().slice(0,10),
+      league: '',
+      homeTeam: '',
+      awayTeam: '',
+      homeCaptain: '',
+      awayCaptain: '',
+      homePlayers: ['','','','','',''],
+      awayPlayers: ['','','','','',''],
+      results: [[null,null,null,null,null,null],[null,null,null,null,null,null],[null,null,null,null,null,null],[null,null,null,null,null,null],[null,null,null,null,null,null],[null,null,null,null,null,null]],
+      doublesResults: [null, null, null], // 3-Man only
+      juniorsGames: [{home:0,away:0},{home:0,away:0},{home:0,away:0},{home:0,away:0}], // Juniors only
+      currentRound: 0,
+      view: 'setup',
+      submitted: false
+    };
+  }
+
+  // Resize players and results arrays when league (and team size) changes
+  function resizeForTeamSize(n){
+    while(state.homePlayers.length < n) state.homePlayers.push('');
+    while(state.awayPlayers.length < n) state.awayPlayers.push('');
+    state.homePlayers = state.homePlayers.slice(0, n);
+    state.awayPlayers = state.awayPlayers.slice(0, n);
+
+    var oldResults = state.results;
+    var fresh = [];
+    for(var i=0;i<n;i++){
+      var row = [];
+      for(var j=0;j<n;j++){
+        row.push(oldResults[i] && oldResults[i][j] !== undefined ? oldResults[i][j] : null);
+      }
+      fresh.push(row);
+    }
+    state.results = fresh;
+
+    if(!state.doublesResults || state.doublesResults.length !== 3){
+      state.doublesResults = [null, null, null];
+    }
+    if(!state.juniorsGames || state.juniorsGames.length !== 4){
+      state.juniorsGames = [{home:0,away:0},{home:0,away:0},{home:0,away:0},{home:0,away:0}];
+    }
+
+    if(state.currentRound >= n) state.currentRound = n - 1;
+  }
+
+  var state = load() || defaultState();
+
+  function save(){ try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e){} }
+  function load(){
+    try { var raw = localStorage.getItem(STORAGE_KEY); if(raw) return JSON.parse(raw); } catch(e){}
+    return null;
+  }
+
+  function frameForRoundSlot(round, slot){
+    var n = teamSize();
+    return { homeIdx: slot, awayIdx: (slot + round) % n };
+  }
+
+  function totals(){
+    var n = teamSize();
+    var fmt = leagueFormat();
+    var h=0,a=0,played=0;
+
+    if(fmt === 'juniors'){
+      // Juniors: score = total points across all games. "Played" counts a game as
+      // played once it has reached at least one score on either side OR one side
+      // has reached the race target.
+      var totalGames = JUNIORS_GAMES.length;
+      for(var i=0;i<totalGames;i++){
+        var g = state.juniorsGames[i] || {home:0,away:0};
+        h += g.home;
+        a += g.away;
+        if(g.home >= JUNIORS_RACE_TO || g.away >= JUNIORS_RACE_TO) played++;
+      }
+      return {h:h,a:a,played:played,total:totalGames,remaining:totalGames-played};
+    }
+
+    // Singles (rotation + 3-man)
+    for(var i=0;i<n;i++) for(var j=0;j<n;j++){
+      var r = state.results[i] && state.results[i][j];
+      if(r==='H'){h++;played++;}
+      else if(r==='A'){a++;played++;}
+    }
+
+    var totalFrames = n * n;
+
+    // Doubles (3-Man only)
+    if(fmt === 'threeman'){
+      totalFrames += THREEMAN_DOUBLES.length;
+      for(var i=0;i<THREEMAN_DOUBLES.length;i++){
+        var dr = state.doublesResults && state.doublesResults[i];
+        if(dr==='H'){h++;played++;}
+        else if(dr==='A'){a++;played++;}
+      }
+    }
+
+    return {h:h,a:a,played:played,total:totalFrames,remaining:totalFrames-played};
+  }
+
+  function playerWins(side, idx){
+    var n = teamSize();
+    var fmt = leagueFormat();
+    var w=0,l=0;
+
+    if(fmt === 'juniors'){
+      // For Juniors, w/l for a player = points scored / points conceded
+      // across the 2 rounds they played
+      for(var g=0;g<JUNIORS_GAMES.length;g++){
+        var pair = JUNIORS_GAMES[g];
+        var hi = pair[0], ai = pair[1];
+        var game = state.juniorsGames[g] || {home:0,away:0};
+        if(side==='H' && hi === idx){
+          w += game.home;
+          l += game.away;
+        } else if(side==='A' && ai === idx){
+          w += game.away;
+          l += game.home;
+        }
+      }
+      return {w:w,l:l};
+    }
+
+    // Singles
+    if(side==='H'){
+      for(var j=0;j<n;j++){
+        var r = state.results[idx] && state.results[idx][j];
+        if(r==='H') w++;
+        else if(r==='A') l++;
+      }
+    } else {
+      for(var i=0;i<n;i++){
+        var r = state.results[i] && state.results[i][idx];
+        if(r==='A') w++;
+        else if(r==='H') l++;
+      }
+    }
+
+    // Doubles credit (3-Man only)
+    if(fmt === 'threeman'){
+      for(var d=0;d<THREEMAN_DOUBLES.length;d++){
+        var dr = state.doublesResults && state.doublesResults[d];
+        if(!dr) continue;
+        var pair = side==='H' ? THREEMAN_DOUBLES[d].home : THREEMAN_DOUBLES[d].away;
+        if(pair.indexOf(idx) === -1) continue;
+        var won = (side==='H' && dr==='H') || (side==='A' && dr==='A');
+        if(won) w++; else l++;
+      }
+    }
+
+    return {w:w,l:l};
+  }
+
+  function escapeHtml(s){
+    return String(s||'').replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function validatePlayersForSubmit(){
+    var n = teamSize();
+    var fmt = leagueFormat();
+    var missingHome = [], missingAway = [];
+
+    if(fmt === 'juniors'){
+      for(var g=0;g<JUNIORS_GAMES.length;g++){
+        var pair = JUNIORS_GAMES[g];
+        var hi = pair[0], ai = pair[1];
+        var game = state.juniorsGames[g] || {home:0,away:0};
+        if(game.home > 0 || game.away > 0){
+          if(!state.homePlayers[hi] || !state.homePlayers[hi].trim()){
+            if(missingHome.indexOf(hi+1) === -1) missingHome.push(hi+1);
+          }
+          if(!state.awayPlayers[ai] || !state.awayPlayers[ai].trim()){
+            if(missingAway.indexOf(ai+1) === -1) missingAway.push(ai+1);
+          }
+        }
+      }
+      return { missingHome: missingHome, missingAway: missingAway };
+    }
+
+    if(fmt === 'threeman'){
+      for(var i=0;i<THREEMAN_SINGLES.length;i++){
+        var p = THREEMAN_SINGLES[i];
+        var r = state.results[p[0]][p[1]];
+        if(r){
+          if(!state.homePlayers[p[0]] || !state.homePlayers[p[0]].trim()){
+            if(missingHome.indexOf(HOME_LETTERS[p[0]]) === -1) missingHome.push(HOME_LETTERS[p[0]]);
+          }
+          if(!state.awayPlayers[p[1]] || !state.awayPlayers[p[1]].trim()){
+            if(missingAway.indexOf(p[1]+1) === -1) missingAway.push(p[1]+1);
+          }
+        }
+      }
+      for(var d=0;d<THREEMAN_DOUBLES.length;d++){
+        var dr = state.doublesResults[d];
+        if(dr){
+          var pair = THREEMAN_DOUBLES[d];
+          for(var k=0;k<pair.home.length;k++){
+            var hi = pair.home[k];
+            if(!state.homePlayers[hi] || !state.homePlayers[hi].trim()){
+              if(missingHome.indexOf(HOME_LETTERS[hi]) === -1) missingHome.push(HOME_LETTERS[hi]);
+            }
+          }
+          for(var k=0;k<pair.away.length;k++){
+            var ai = pair.away[k];
+            if(!state.awayPlayers[ai] || !state.awayPlayers[ai].trim()){
+              if(missingAway.indexOf(ai+1) === -1) missingAway.push(ai+1);
+            }
+          }
+        }
+      }
+    } else {
+      for(var i=0;i<n;i++){
+        for(var j=0;j<n;j++){
+          var r = state.results[i][j];
+          if(r){
+            if(!state.homePlayers[i] || !state.homePlayers[i].trim()){
+              if(missingHome.indexOf(HOME_LETTERS[i]) === -1) missingHome.push(HOME_LETTERS[i]);
+            }
+            if(!state.awayPlayers[j] || !state.awayPlayers[j].trim()){
+              if(missingAway.indexOf(j+1) === -1) missingAway.push(j+1);
+            }
+          }
+        }
+      }
+    }
+    return { missingHome: missingHome, missingAway: missingAway };
+  }
+
+  function levenshtein(a, b){
+    a = a.toLowerCase(); b = b.toLowerCase();
+    if(a === b) return 0;
+    if(!a.length) return b.length;
+    if(!b.length) return a.length;
+    var prev = []; for(var i=0;i<=b.length;i++) prev.push(i);
+    for(var i=1;i<=a.length;i++){
+      var curr = [i];
+      for(var j=1;j<=b.length;j++){
+        var cost = a.charAt(i-1) === b.charAt(j-1) ? 0 : 1;
+        curr.push(Math.min(curr[j-1]+1, prev[j]+1, prev[j-1]+cost));
+      }
+      prev = curr;
+    }
+    return prev[b.length];
+  }
+
+  function fetchKnownNames(team){
+    return new Promise(function(resolve){
+      try {
+        var url = LEAGUE_ENDPOINT + '?action=knownNames';
+        if(state.league) url += '&league=' + encodeURIComponent(state.league);
+        if(team) url += '&team=' + encodeURIComponent(team);
+        fetch(url, { method: 'GET' })
+          .then(function(res){ return res.text(); })
+          .then(function(txt){
+            try {
+              var data = JSON.parse(txt);
+              if(data && data.ok && Array.isArray(data.names)) resolve(data.names);
+              else resolve([]);
+            } catch(e){ resolve([]); }
+          })
+          .catch(function(){ resolve([]); });
+      } catch(e){ resolve([]); }
+    });
+  }
+
+  function findFuzzyMatches(currentEntries, knownNames){
+    if(!knownNames || !knownNames.length) return [];
+    var knownLower = {};
+    for(var i=0;i<knownNames.length;i++){
+      knownLower[knownNames[i].toLowerCase().trim()] = knownNames[i];
+    }
+    var suggestions = [];
+    for(var i=0;i<currentEntries.length;i++){
+      var entry = currentEntries[i];
+      var lower = entry.name.toLowerCase();
+      if(knownLower[lower]) continue;
+      var best = null, bestDist = 99;
+      for(var k=0;k<knownNames.length;k++){
+        var kn = knownNames[k];
+        var dist = levenshtein(entry.name, kn);
+        var threshold = entry.name.length <= 4 ? 1 : 2;
+        if(dist <= threshold && dist < bestDist){ best = kn; bestDist = dist; }
+      }
+      if(best){
+        suggestions.push({
+          side: entry.side, position: entry.position,
+          typed: entry.name, suggested: best
+        });
+      }
+    }
+    return suggestions;
+  }
+
+  function showConfirmModal(title, body, confirmLabel, cancelLabel, onConfirm, onCancel){
+    var existing = document.getElementById('gnpa-modal');
+    if(existing) existing.remove();
+
+    var backdrop = document.createElement('div');
+    backdrop.id = 'gnpa-modal';
+    backdrop.className = 'modal-backdrop';
+    backdrop.innerHTML =
+      '<div class="modal-card">' +
+        '<div class="modal-title">' + escapeHtml(title) + '</div>' +
+        '<div class="modal-body">' + escapeHtml(body) + '</div>' +
+        '<div class="modal-actions">' +
+          '<button id="gnpa-modal-cancel">' + escapeHtml(cancelLabel || 'Cancel') + '</button>' +
+          '<button id="gnpa-modal-confirm" class="btn-primary">' + escapeHtml(confirmLabel || 'OK') + '</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(backdrop);
+
+    var close = function(){ backdrop.remove(); };
+    backdrop.querySelector('#gnpa-modal-confirm').addEventListener('click', function(){
+      close();
+      if(onConfirm) onConfirm();
+    });
+    backdrop.querySelector('#gnpa-modal-cancel').addEventListener('click', function(){
+      close();
+      if(onCancel) onCancel();
+    });
+  }
+
+  // Modal that shows fuzzy-match suggestions with per-row Apply buttons,
+  // plus Submit anyway / Cancel actions.
+  function showSuggestionsModal(suggestions, onSubmitAnyway, onCancel){
+    var existing = document.getElementById('gnpa-modal');
+    if(existing) existing.remove();
+
+    var rowsHtml = '';
+    for(var i=0;i<suggestions.length;i++){
+      var s = suggestions[i];
+      rowsHtml +=
+        '<div class="suggest-row" data-idx="' + i + '">' +
+          '<div class="suggest-info">' +
+            '<div class="suggest-pos">' + (s.side === 'home' ? 'Home ' : 'Away ') + escapeHtml(String(s.position)) + '</div>' +
+            '<div class="suggest-names">' +
+              '<span class="suggest-typed">' + escapeHtml(s.typed) + '</span>' +
+              '<span class="suggest-arrow">→</span>' +
+              '<span class="suggest-fix">' + escapeHtml(s.suggested) + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<button class="suggest-apply" data-apply="' + i + '">Use</button>' +
+        '</div>';
+    }
+
+    var backdrop = document.createElement('div');
+    backdrop.id = 'gnpa-modal';
+    backdrop.className = 'modal-backdrop';
+    backdrop.innerHTML =
+      '<div class="modal-card" style="max-width:480px;">' +
+        '<div class="modal-title">Possible name typos</div>' +
+        '<div class="modal-body">These names look like existing players in the league. Tap "Use" to fix any typos before submitting:</div>' +
+        '<div class="suggest-list">' + rowsHtml + '</div>' +
+        '<div class="modal-actions" style="margin-top:var(--sp-3);">' +
+          '<button id="gnpa-modal-cancel">Cancel</button>' +
+          '<button id="gnpa-modal-confirm" class="btn-success">Submit anyway</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(backdrop);
+
+    // Apply suggestion handler — modifies state.players, refreshes the row
+    backdrop.querySelectorAll('.suggest-apply').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        var idx = +e.currentTarget.getAttribute('data-apply');
+        var s = suggestions[idx];
+        var posIdx;
+        if(s.side === 'home'){
+          posIdx = HOME_LETTERS.indexOf(s.position);
+          if(posIdx >= 0) state.homePlayers[posIdx] = s.suggested;
+        } else {
+          posIdx = parseInt(s.position, 10) - 1;
+          if(posIdx >= 0) state.awayPlayers[posIdx] = s.suggested;
+        }
+        save();
+        // Mark the row as applied
+        var row = backdrop.querySelector('.suggest-row[data-idx="'+idx+'"]');
+        if(row){
+          row.classList.add('applied');
+          var btn = row.querySelector('.suggest-apply');
+          btn.textContent = '✓';
+          btn.disabled = true;
+        }
+      });
+    });
+
+    var close = function(){ backdrop.remove(); };
+    backdrop.querySelector('#gnpa-modal-confirm').addEventListener('click', function(){
+      close();
+      if(onSubmitAnyway) onSubmitAnyway();
+    });
+    backdrop.querySelector('#gnpa-modal-cancel').addEventListener('click', function(){
+      close();
+      if(onCancel) onCancel();
+    });
+  }
+
+  // ============ STANDINGS OVERLAY ============
+  // Local cache of fetched data to avoid re-hitting the network
+  // when toggling Team/Player tabs within the same session.
+  var standingsCache = { leagues: null, byLeague: {} };
+  var standingsView = { league: null, tab: 'team' };
+
+  function openStandings(){
+    // Default to the current league, fall back to first configured
+    if(!standingsView.league){
+      standingsView.league = state.league || '';
+    }
+    renderStandingsOverlay();
+  }
+
+  function closeStandings(){
+    var el = document.getElementById('gnpa-standings');
+    if(el) el.remove();
+  }
+
+  function renderStandingsOverlay(){
+    closeStandings();
+    var overlay = document.createElement('div');
+    overlay.id = 'gnpa-standings';
+    overlay.className = 'standings-overlay';
+    overlay.innerHTML =
+      '<div class="standings-header">' +
+        '<div class="standings-title">Standings</div>' +
+        '<button class="standings-close" id="standings-close" aria-label="Close">×</button>' +
+      '</div>' +
+      '<div class="standings-controls">' +
+        '<select id="standings-league"></select>' +
+        '<div class="standings-toggle">' +
+          '<button data-tab="team" class="' + (standingsView.tab==='team'?'active':'') + '">Teams</button>' +
+          '<button data-tab="player" class="' + (standingsView.tab==='player'?'active':'') + '">Players</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="standings-body" id="standings-body">' +
+        '<div class="standings-loading">Loading...</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#standings-close').addEventListener('click', closeStandings);
+    var toggleBtns = overlay.querySelectorAll('.standings-toggle button');
+    for(var i=0;i<toggleBtns.length;i++){
+      toggleBtns[i].addEventListener('click', function(e){
+        standingsView.tab = e.currentTarget.getAttribute('data-tab');
+        renderStandingsOverlay();
+      });
+    }
+
+    var leagueSelect = overlay.querySelector('#standings-league');
+    leagueSelect.addEventListener('change', function(e){
+      standingsView.league = e.target.value;
+      renderStandingsOverlay();
+    });
+
+    // Populate league dropdown — use configured leagues if cached, else fetch
+    if(standingsCache.leagues){
+      populateLeagueDropdown(leagueSelect, standingsCache.leagues);
+      loadStandingsBody();
+    } else {
+      fetchLeagueList().then(function(leagues){
+        standingsCache.leagues = leagues;
+        populateLeagueDropdown(leagueSelect, leagues);
+        loadStandingsBody();
+      });
+    }
+  }
+
+  function populateLeagueDropdown(select, leagues){
+    var opts = '<option value="">Pick a league...</option>';
+    for(var i=0;i<leagues.length;i++){
+      var sel = (standingsView.league === leagues[i]) ? ' selected' : '';
+      opts += '<option value="' + escapeHtml(leagues[i]) + '"' + sel + '>' + escapeHtml(leagues[i]) + '</option>';
+    }
+    select.innerHTML = opts;
+  }
+
+  function fetchLeagueList(){
+    return fetch(LEAGUE_ENDPOINT + '?action=leagues', { method: 'GET' })
+      .then(function(res){ return res.text(); })
+      .then(function(txt){
+        try {
+          var data = JSON.parse(txt);
+          if(data && data.ok && Array.isArray(data.leagues)) return data.leagues;
+        } catch(e){}
+        return [];
+      })
+      .catch(function(){ return []; });
+  }
+
+  function loadStandingsBody(){
+    var body = document.getElementById('standings-body');
+    if(!body) return;
+
+    if(!standingsView.league){
+      body.innerHTML = '<div class="standings-empty">Pick a league above to view standings.</div>';
+      return;
+    }
+
+    var cached = standingsCache.byLeague[standingsView.league];
+    if(cached){
+      renderStandingsTable(body, cached);
+      return;
+    }
+
+    body.innerHTML = '<div class="standings-loading">Loading ' + escapeHtml(standingsView.league) + ' standings...</div>';
+
+    fetch(LEAGUE_ENDPOINT + '?action=standings&league=' + encodeURIComponent(standingsView.league), { method: 'GET' })
+      .then(function(res){ return res.text(); })
+      .then(function(txt){
+        try {
+          var data = JSON.parse(txt);
+          if(data && data.ok){
+            standingsCache.byLeague[standingsView.league] = { teams: data.teams || [], players: data.players || [] };
+            renderStandingsTable(body, standingsCache.byLeague[standingsView.league]);
+            return;
+          }
+          body.innerHTML = '<div class="standings-empty">' + escapeHtml(data && data.message || 'Could not load standings.') + '</div>';
+        } catch(e){
+          body.innerHTML = '<div class="standings-empty">Could not parse server response.</div>';
+        }
+      })
+      .catch(function(err){
+        body.innerHTML = '<div class="standings-empty">Network error: ' + escapeHtml(err.message) + '</div>';
+      });
+  }
+
+  function renderStandingsTable(body, data){
+    if(standingsView.tab === 'team'){
+      if(!data.teams.length){
+        body.innerHTML = '<div class="standings-empty">No team standings yet for this league.<br>Manager needs to verify some matches and rebuild standings.</div>';
+        return;
+      }
+      var rows = data.teams.map(function(t){
+        return '<tr>' +
+          '<td class="pos num">' + t.pos + '</td>' +
+          '<td class="name">' + escapeHtml(t.team) + '</td>' +
+          '<td class="num">' + t.played + '</td>' +
+          '<td class="num">' + t.w + '</td>' +
+          '<td class="num">' + t.l + '</td>' +
+          '<td class="num">' + t.d + '</td>' +
+          '<td class="num">' + t.framesWon + '</td>' +
+          '<td class="num pct">' + (Math.round(t.pct*100)/100).toFixed(2) + '%</td>' +
+          '<td class="num">' + t.points + '</td>' +
+        '</tr>';
+      }).join('');
+      body.innerHTML =
+        '<table class="standings-table">' +
+          '<thead><tr>' +
+            '<th class="num">#</th>' +
+            '<th>Team</th>' +
+            '<th class="num">P</th>' +
+            '<th class="num">W</th>' +
+            '<th class="num">L</th>' +
+            '<th class="num">D</th>' +
+            '<th class="num">F</th>' +
+            '<th class="num">%</th>' +
+            '<th class="num">Pts</th>' +
+          '</tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>';
+    } else {
+      if(!data.players.length){
+        body.innerHTML = '<div class="standings-empty">No player standings yet for this league.<br>Manager needs to verify some matches and rebuild standings.</div>';
+        return;
+      }
+      var rows = data.players.map(function(p){
+        return '<tr>' +
+          '<td class="pos num">' + p.pos + '</td>' +
+          '<td>' +
+            '<div class="name">' + escapeHtml(p.player) + '</div>' +
+            '<div class="subname">' + escapeHtml(p.team) + '</div>' +
+          '</td>' +
+          '<td class="num">' + p.framesWon + '</td>' +
+          '<td class="num">' + p.framesPlayed + '</td>' +
+          '<td class="num pct">' + (Math.round(p.pct*100)/100).toFixed(2) + '%</td>' +
+        '</tr>';
+      }).join('');
+      body.innerHTML =
+        '<table class="standings-table">' +
+          '<thead><tr>' +
+            '<th class="num">#</th>' +
+            '<th>Player</th>' +
+            '<th class="num">F/W</th>' +
+            '<th class="num">F/P</th>' +
+            '<th class="num">%</th>' +
+          '</tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>';
+    }
+  }
+
+  function brandHeader(){
+    return '<div class="brand-header">' +
+      '<div></div>' +
+      '<div class="brand-center">' + LOGO_SVG + '<div class="brand-text"><div class="brand-title">GNPA</div><div class="brand-sub">Pool scorecard</div></div></div>' +
+      '<button class="brand-trophy" id="brand-trophy-btn" aria-label="View standings" title="View standings">🏆</button>' +
+      '</div>';
+  }
+
+  function render(){
+    try {
+      if(state.view==='setup') renderSetup();
+      else if(state.view==='play') renderPlay();
+      else if(state.view==='grid') renderGrid();
+      else if(state.view==='summary') renderSummary();
+      else { state.view = 'setup'; renderSetup(); }
+      save();
+    } catch(e) {
+      app.innerHTML = '<div style="padding:20px;color:#e8615b;"><h3>Error</h3><p>' + escapeHtml(e.message) + '</p><button onclick="localStorage.removeItem(\'gnpa_match_v5\');location.reload();" style="margin-top:12px;padding:10px;">Reset and reload</button></div>';
+    }
+  }
+
+  function headerHtml(active){
+    var tabs = [
+      {id:'setup',label:'Setup'},
+      {id:'play',label:'Play'},
+      {id:'grid',label:'Grid'},
+      {id:'summary',label:'Summary'}
+    ];
+    var t = totals();
+    var tabHtml = '';
+    for(var i=0;i<tabs.length;i++){
+      tabHtml += '<button class="tab ' + (active===tabs[i].id?'active':'') + '" data-tab="' + tabs[i].id + '">' + tabs[i].label + '</button>';
+    }
+    return brandHeader() +
+      '<div class="header"><div class="title">' + escapeHtml(state.homeTeam||'Home') + ' vs ' + escapeHtml(state.awayTeam||'Away') + '</div><div class="score-mini">' + t.h + '–' + t.a + '</div></div>' +
+      '<div class="tabs">' + tabHtml + '</div>';
+  }
+
+  function bindTabs(){
+    var tabs = app.querySelectorAll('.tab');
+    for(var i=0;i<tabs.length;i++){
+      tabs[i].addEventListener('click', function(e){ state.view = e.currentTarget.getAttribute('data-tab'); render(); });
+    }
+    var trophy = app.querySelector('#brand-trophy-btn');
+    if(trophy){
+      trophy.addEventListener('click', function(){ openStandings(); });
+    }
+  }
+
+  function renderSetup(){
+    var n = teamSize();
+    var fmt = leagueFormat();
+    var homeInputs = '', awayInputs = '';
+    for(var i=0;i<n;i++){
+      homeInputs += '<div class="player-row"><span class="player-letter">' + HOME_LETTERS[i] + '</span><input data-home="' + i + '" type="text" value="' + escapeHtml(state.homePlayers[i] || '') + '" placeholder="Home ' + HOME_LETTERS[i] + '"></div>';
+      awayInputs += '<div class="player-row"><span class="player-letter">' + (i+1) + '</span><input data-away="' + i + '" type="text" value="' + escapeHtml(state.awayPlayers[i] || '') + '" placeholder="Away ' + (i+1) + '"></div>';
+    }
+
+    var leagueOptions = '<option value="">Select league...</option>';
+    for(var i=0;i<LEAGUES.length;i++){
+      var L = LEAGUES[i];
+      var sel = (state.league === L.name) ? ' selected' : '';
+      var sizeLabel;
+      if(L.format === 'threeman') sizeLabel = '3-man + doubles';
+      else if(L.format === 'juniors') sizeLabel = '2-man, race to 5';
+      else sizeLabel = L.teamSize + '-man';
+      leagueOptions += '<option value="' + escapeHtml(L.name) + '"' + sel + '>' + escapeHtml(L.name) + ' (' + sizeLabel + ')</option>';
+    }
+
+    var formatNote = '';
+    if(state.league){
+      if(fmt === 'threeman'){
+        formatNote = '<div style="font-size:var(--fs-xs);color:var(--text-tertiary);margin-top:6px;">3 players per side · 9 singles + 3 doubles · 12 frames total</div>';
+      } else if(fmt === 'juniors'){
+        formatNote = '<div style="font-size:var(--fs-xs);color:var(--text-tertiary);margin-top:6px;">2 players per side · 4 rounds, race to 5 each · score = total points</div>';
+      } else {
+        formatNote = '<div style="font-size:var(--fs-xs);color:var(--text-tertiary);margin-top:6px;">' + n + ' players per side · ' + (n*n) + ' frames · ' + n + ' rounds</div>';
+      }
+    }
+
+    app.innerHTML = headerHtml('setup') +
+      '<div class="field-row stackable"><div class="field"><span class="field-label">Date</span><input id="f-date" type="date" value="' + state.date + '"></div><div class="field"><span class="field-label">League</span><select id="f-league">' + leagueOptions + '</select>' + formatNote + '</div></div>' +
+      '<div class="field-row"><div class="team-card"><div class="field-label">Home team</div><input id="f-home" type="text" value="' + escapeHtml(state.homeTeam) + '" placeholder="Team name"><input id="f-hcap" type="text" value="' + escapeHtml(state.homeCaptain) + '" placeholder="Captain"></div><div class="team-card"><div class="field-label">Away team</div><input id="f-away" type="text" value="' + escapeHtml(state.awayTeam) + '" placeholder="Team name"><input id="f-acap" type="text" value="' + escapeHtml(state.awayCaptain) + '" placeholder="Captain"></div></div>' +
+      '<div class="players-card"><div class="players-section-title">Players (' + n + ' per side)</div><div class="players-grid"><div class="players-col">' + homeInputs + '</div><div class="players-col">' + awayInputs + '</div></div></div>' +
+      '<div class="actions"><button id="reset-btn" class="btn-danger">Reset match</button><button id="start-btn" class="btn-primary">Start scoring →</button></div>' +
+      '<div class="install-hint">Tip: on iPhone tap Share → "Add to Home Screen". On Android use Chrome\'s "Add to Home screen" menu. Works offline once installed.</div>';
+
+    bindTabs();
+    function bind(id, key){
+      app.querySelector('#'+id).addEventListener('input', function(e){ state[key] = e.target.value; state.submitted = false; save(); });
+    }
+    bind('f-date','date');
+    bind('f-home','homeTeam'); bind('f-away','awayTeam');
+    bind('f-hcap','homeCaptain'); bind('f-acap','awayCaptain');
+
+    // League dropdown — when it changes, resize the match if team size changed
+    app.querySelector('#f-league').addEventListener('change', function(e){
+      var newLeague = e.target.value;
+      var oldLeague = state.league;
+      var oldSize = teamSize();
+
+      // Tentatively apply to compute new size
+      state.league = newLeague;
+      var newSize = teamSize();
+
+      // Check for any existing scores
+      var hasData = false;
+      for(var i=0;i<state.results.length && !hasData;i++){
+        for(var j=0;j<state.results[i].length && !hasData;j++){
+          if(state.results[i][j]) hasData = true;
+        }
+      }
+
+      var doSwitch = function(){
+        if(oldSize !== newSize) resizeForTeamSize(newSize);
+        state.submitted = false;
+        save();
+        render();
+      };
+
+      var doRevert = function(){
+        state.league = oldLeague;
+        e.target.value = oldLeague;
+        save();
+      };
+
+      if(oldSize !== newSize && hasData){
+        // Show a custom in-app modal because confirm() can be unreliable in PWAs
+        showConfirmModal(
+          'Switch to ' + newSize + '-man format?',
+          'You have scores entered. Frames in shared positions will be kept; any others will be discarded.',
+          'Switch',
+          'Cancel',
+          doSwitch,
+          doRevert
+        );
+      } else {
+        doSwitch();
+      }
+    });
+
+    var hInputs = app.querySelectorAll('input[data-home]');
+    for(var i=0;i<hInputs.length;i++){
+      hInputs[i].addEventListener('input', function(e){ state.homePlayers[+e.target.getAttribute('data-home')] = e.target.value; state.submitted = false; save(); });
+    }
+    var aInputs = app.querySelectorAll('input[data-away]');
+    for(var i=0;i<aInputs.length;i++){
+      aInputs[i].addEventListener('input', function(e){ state.awayPlayers[+e.target.getAttribute('data-away')] = e.target.value; state.submitted = false; save(); });
+    }
+
+    app.querySelector('#start-btn').addEventListener('click', function(){
+      if(!state.league){
+        alert('Please select a league first.');
+        return;
+      }
+      state.view='play'; render();
+    });
+    app.querySelector('#reset-btn').addEventListener('click', function(){
+      if(confirm('Reset everything? This clears all scores and player names.')){ state = defaultState(); render(); }
+    });
+  }
+
+  function renderPlay(){
+    var fmt = leagueFormat();
+    if(fmt === 'threeman'){
+      renderPlayThreeMan();
+      return;
+    }
+    if(fmt === 'juniors'){
+      renderPlayJuniors();
+      return;
+    }
+    var n = teamSize();
+    var r = state.currentRound;
+    if(r >= n) { r = state.currentRound = n - 1; }
+    var framesHtml = '';
+    for(var slot=0; slot<n; slot++){
+      var f = frameForRoundSlot(r, slot);
+      var hName = escapeHtml(state.homePlayers[f.homeIdx] || ('Home ' + HOME_LETTERS[f.homeIdx]));
+      var aName = escapeHtml(state.awayPlayers[f.awayIdx] || ('Away ' + (f.awayIdx+1)));
+      var result = state.results[f.homeIdx][f.awayIdx];
+      framesHtml += '<div class="frame-card"><div class="frame-label">Frame ' + (slot+1) + ' · ' + HOME_LETTERS[f.homeIdx] + ' vs ' + (f.awayIdx+1) + '</div><div class="frame-pick"><button class="pick-btn left ' + (result==='H'?'selected-home':'') + '" data-pick="H" data-h="' + f.homeIdx + '" data-a="' + f.awayIdx + '">' + hName + '</button><span class="vs">vs</span><button class="pick-btn right ' + (result==='A'?'selected-away':'') + '" data-pick="A" data-h="' + f.homeIdx + '" data-a="' + f.awayIdx + '">' + aName + '</button></div>' + (result ? '<button class="clear-btn" data-clear data-h="' + f.homeIdx + '" data-a="' + f.awayIdx + '">clear</button>' : '') + '</div>';
+    }
+
+    app.innerHTML = headerHtml('play') +
+      '<div class="round-nav"><button id="prev-r"' + (r===0?' disabled':'') + '>←</button><div class="round-title">Round ' + (r+1) + ' of ' + n + '</div><button id="next-r"' + (r===n-1?' disabled':'') + '>→</button></div>' +
+      framesHtml;
+
+    bindTabs();
+    app.querySelector('#prev-r').addEventListener('click', function(){ if(state.currentRound>0){ state.currentRound--; render(); }});
+    app.querySelector('#next-r').addEventListener('click', function(){ if(state.currentRound<n-1){ state.currentRound++; render(); }});
+
+    var picks = app.querySelectorAll('button[data-pick]');
+    for(var i=0;i<picks.length;i++){
+      picks[i].addEventListener('click', function(e){
+        var b = e.currentTarget;
+        state.results[+b.getAttribute('data-h')][+b.getAttribute('data-a')] = b.getAttribute('data-pick');
+        state.submitted = false;
+        render();
+      });
+    }
+    var clears = app.querySelectorAll('button[data-clear]');
+    for(var i=0;i<clears.length;i++){
+      clears[i].addEventListener('click', function(e){
+        var b = e.currentTarget;
+        state.results[+b.getAttribute('data-h')][+b.getAttribute('data-a')] = null;
+        state.submitted = false;
+        render();
+      });
+    }
+  }
+
+  function renderPlayThreeMan(){
+    // Round structure: 3 singles rounds + 1 doubles round = 4 total
+    var TOTAL_ROUNDS = 4;
+    var r = state.currentRound;
+    if(r >= TOTAL_ROUNDS) { r = state.currentRound = TOTAL_ROUNDS - 1; }
+    if(r < 0) { r = state.currentRound = 0; }
+
+    var roundLabel, framesHtml = '';
+
+    if(r < 3){
+      // Singles rounds: 3 frames each, slice from THREEMAN_SINGLES
+      roundLabel = 'Round ' + (r+1) + ' of 4 · Singles';
+      var start = r * 3;
+      for(var slot=0; slot<3; slot++){
+        var pair = THREEMAN_SINGLES[start + slot];
+        var h = pair[0], a = pair[1];
+        var hName = escapeHtml(state.homePlayers[h] || ('Home ' + HOME_LETTERS[h]));
+        var aName = escapeHtml(state.awayPlayers[a] || ('Away ' + (a+1)));
+        var result = state.results[h][a];
+        framesHtml +=
+          '<div class="frame-card">' +
+            '<div class="frame-label">Frame ' + (slot+1) + ' · ' + HOME_LETTERS[h] + ' vs ' + (a+1) + '</div>' +
+            '<div class="frame-pick">' +
+              '<button class="pick-btn left ' + (result==='H'?'selected-home':'') + '" data-single-pick="H" data-h="' + h + '" data-a="' + a + '">' + hName + '</button>' +
+              '<span class="vs">vs</span>' +
+              '<button class="pick-btn right ' + (result==='A'?'selected-away':'') + '" data-single-pick="A" data-h="' + h + '" data-a="' + a + '">' + aName + '</button>' +
+            '</div>' +
+            (result ? '<button class="clear-btn" data-single-clear data-h="' + h + '" data-a="' + a + '">clear</button>' : '') +
+          '</div>';
+      }
+    } else {
+      // Doubles round
+      roundLabel = 'Round 4 of 4 · Doubles';
+      for(var d=0;d<THREEMAN_DOUBLES.length;d++){
+        var pair = THREEMAN_DOUBLES[d];
+        var hLabel = pair.home.map(function(i){ return HOME_LETTERS[i]; }).join('+');
+        var aLabel = pair.away.map(function(i){ return (i+1); }).join('+');
+        var hNames = pair.home.map(function(i){ return state.homePlayers[i] || ('Home ' + HOME_LETTERS[i]); }).join(' + ');
+        var aNames = pair.away.map(function(i){ return state.awayPlayers[i] || ('Away ' + (i+1)); }).join(' + ');
+        var result = state.doublesResults[d];
+        framesHtml +=
+          '<div class="frame-card">' +
+            '<div class="frame-label">Doubles ' + (d+1) + ' · ' + hLabel + ' vs ' + aLabel + '</div>' +
+            '<div class="frame-pick">' +
+              '<button class="pick-btn left ' + (result==='H'?'selected-home':'') + '" data-double-pick="H" data-d="' + d + '">' + escapeHtml(hNames) + '</button>' +
+              '<span class="vs">vs</span>' +
+              '<button class="pick-btn right ' + (result==='A'?'selected-away':'') + '" data-double-pick="A" data-d="' + d + '">' + escapeHtml(aNames) + '</button>' +
+            '</div>' +
+            (result ? '<button class="clear-btn" data-double-clear data-d="' + d + '">clear</button>' : '') +
+          '</div>';
+      }
+    }
+
+    app.innerHTML = headerHtml('play') +
+      '<div class="round-nav">' +
+        '<button id="prev-r"' + (r===0?' disabled':'') + '>←</button>' +
+        '<div class="round-title">' + roundLabel + '</div>' +
+        '<button id="next-r"' + (r===TOTAL_ROUNDS-1?' disabled':'') + '>→</button>' +
+      '</div>' +
+      framesHtml;
+
+    bindTabs();
+
+    app.querySelector('#prev-r').addEventListener('click', function(){
+      if(state.currentRound>0){ state.currentRound--; render(); }
+    });
+    app.querySelector('#next-r').addEventListener('click', function(){
+      if(state.currentRound<TOTAL_ROUNDS-1){ state.currentRound++; render(); }
+    });
+
+    var sPicks = app.querySelectorAll('button[data-single-pick]');
+    for(var i=0;i<sPicks.length;i++){
+      sPicks[i].addEventListener('click', function(e){
+        var b = e.currentTarget;
+        state.results[+b.getAttribute('data-h')][+b.getAttribute('data-a')] = b.getAttribute('data-single-pick');
+        state.submitted = false;
+        render();
+      });
+    }
+    var sClears = app.querySelectorAll('button[data-single-clear]');
+    for(var i=0;i<sClears.length;i++){
+      sClears[i].addEventListener('click', function(e){
+        var b = e.currentTarget;
+        state.results[+b.getAttribute('data-h')][+b.getAttribute('data-a')] = null;
+        state.submitted = false;
+        render();
+      });
+    }
+    var dPicks = app.querySelectorAll('button[data-double-pick]');
+    for(var i=0;i<dPicks.length;i++){
+      dPicks[i].addEventListener('click', function(e){
+        var b = e.currentTarget;
+        state.doublesResults[+b.getAttribute('data-d')] = b.getAttribute('data-double-pick');
+        state.submitted = false;
+        render();
+      });
+    }
+    var dClears = app.querySelectorAll('button[data-double-clear]');
+    for(var i=0;i<dClears.length;i++){
+      dClears[i].addEventListener('click', function(e){
+        var b = e.currentTarget;
+        state.doublesResults[+b.getAttribute('data-d')] = null;
+        state.submitted = false;
+        render();
+      });
+    }
+  }
+
+  function renderPlayJuniors(){
+    var TOTAL_ROUNDS = JUNIORS_GAMES.length; // 4
+    var r = state.currentRound;
+    if(r >= TOTAL_ROUNDS) { r = state.currentRound = TOTAL_ROUNDS - 1; }
+    if(r < 0) { r = state.currentRound = 0; }
+
+    var pair = JUNIORS_GAMES[r];
+    var hi = pair[0], ai = pair[1];
+    var hName = state.homePlayers[hi] || ('Home ' + (hi+1));
+    var aName = state.awayPlayers[ai] || ('Away ' + (ai+1));
+    var game = state.juniorsGames[r] || {home:0,away:0};
+
+    var winner = null;
+    if(game.home >= JUNIORS_RACE_TO) winner = 'H';
+    else if(game.away >= JUNIORS_RACE_TO) winner = 'A';
+
+    var winnerBanner = '';
+    if(winner){
+      var winnerName = winner === 'H' ? hName : aName;
+      winnerBanner =
+        '<div class="juniors-winner ' + (winner==='H' ? 'home' : 'away') + '">' +
+          '<span>Round won by ' + escapeHtml(winnerName) + '</span>' +
+        '</div>';
+    }
+
+    // Match-running totals across all 4 games
+    var t = totals();
+
+    app.innerHTML = headerHtml('play') +
+      '<div class="round-nav">' +
+        '<button id="prev-r"' + (r===0?' disabled':'') + '>←</button>' +
+        '<div class="round-title">Round ' + (r+1) + ' of ' + TOTAL_ROUNDS + '</div>' +
+        '<button id="next-r"' + (r===TOTAL_ROUNDS-1?' disabled':'') + '>→</button>' +
+      '</div>' +
+      '<div class="juniors-meta">First to ' + JUNIORS_RACE_TO + ' wins this round · Match score ' + t.h + '–' + t.a + '</div>' +
+
+      '<div class="juniors-game">' +
+        '<div class="juniors-side ' + (winner==='H'?'winner':'') + '">' +
+          '<div class="juniors-name">' + escapeHtml(hName) + '</div>' +
+          '<div class="juniors-pos">Home ' + (hi+1) + '</div>' +
+          '<div class="juniors-counter">' +
+            '<button class="counter-btn minus" data-side="H" data-delta="-1" ' + (game.home<=0?'disabled':'') + '>−</button>' +
+            '<div class="counter-value home">' + game.home + '</div>' +
+            '<button class="counter-btn plus" data-side="H" data-delta="1" ' + (winner?'disabled':'') + '>+</button>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="juniors-vs">vs</div>' +
+
+        '<div class="juniors-side ' + (winner==='A'?'winner':'') + '">' +
+          '<div class="juniors-name">' + escapeHtml(aName) + '</div>' +
+          '<div class="juniors-pos">Away ' + (ai+1) + '</div>' +
+          '<div class="juniors-counter">' +
+            '<button class="counter-btn minus" data-side="A" data-delta="-1" ' + (game.away<=0?'disabled':'') + '>−</button>' +
+            '<div class="counter-value away">' + game.away + '</div>' +
+            '<button class="counter-btn plus" data-side="A" data-delta="1" ' + (winner?'disabled':'') + '>+</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+
+      winnerBanner +
+
+      ((game.home > 0 || game.away > 0) ?
+        '<button class="clear-btn" id="reset-game-btn" style="display:block;margin:var(--sp-2) auto 0;">reset this round</button>'
+        : '');
+
+    bindTabs();
+
+    app.querySelector('#prev-r').addEventListener('click', function(){
+      if(state.currentRound>0){ state.currentRound--; render(); }
+    });
+    app.querySelector('#next-r').addEventListener('click', function(){
+      if(state.currentRound<TOTAL_ROUNDS-1){ state.currentRound++; render(); }
+    });
+
+    var counterBtns = app.querySelectorAll('button[data-side]');
+    for(var i=0;i<counterBtns.length;i++){
+      counterBtns[i].addEventListener('click', function(e){
+        var btn = e.currentTarget;
+        var side = btn.getAttribute('data-side');
+        var delta = parseInt(btn.getAttribute('data-delta'), 10);
+        var g = state.juniorsGames[state.currentRound];
+
+        if(side === 'H'){
+          g.home = Math.max(0, Math.min(JUNIORS_RACE_TO, g.home + delta));
+        } else {
+          g.away = Math.max(0, Math.min(JUNIORS_RACE_TO, g.away + delta));
+        }
+        state.submitted = false;
+        save();
+        render();
+      });
+    }
+
+    var resetBtn = app.querySelector('#reset-game-btn');
+    if(resetBtn){
+      resetBtn.addEventListener('click', function(){
+        state.juniorsGames[state.currentRound] = {home:0,away:0};
+        state.submitted = false;
+        save();
+        render();
+      });
+    }
+  }
+
+  function renderGrid(){
+    var fmt = leagueFormat();
+    if(fmt === 'threeman'){
+      renderGridThreeMan();
+      return;
+    }
+    if(fmt === 'juniors'){
+      renderGridJuniors();
+      return;
+    }
+    var n = teamSize();
+    var headerCells = '';
+    for(var num=1;num<=n;num++) headerCells += '<th>' + num + '</th>';
+
+    var rowsHtml = '';
+    for(var i=0;i<n;i++){
+      var pw = playerWins('H', i);
+      var cells = '';
+      for(var j=0;j<n;j++){
+        var r = state.results[i][j];
+        var cls = r==='H' ? 'home' : r==='A' ? 'away' : '';
+        var label = r==='H' ? '●' : r==='A' ? '○' : '·';
+        cells += '<td class="result-cell ' + cls + '" data-cell data-h="' + i + '" data-a="' + j + '">' + label + '</td>';
+      }
+      rowsHtml += '<tr><td class="label">' + HOME_LETTERS[i] + '</td>' + cells + '<td class="total-cell">' + pw.w + '</td></tr>';
+    }
+    var awayTotals = '';
+    for(var j=0;j<n;j++){ awayTotals += '<td class="total-cell">' + playerWins('A', j).w + '</td>'; }
+
+    app.innerHTML = headerHtml('grid') +
+      '<div class="grid-help">Tap a cell: home → away → clear</div>' +
+      '<div class="grid-wrap"><table class="result-grid"><thead><tr><th></th>' + headerCells + '<th style="font-size:11px;opacity:0.7;">W</th></tr></thead><tbody>' + rowsHtml + '<tr><td class="total-cell" style="font-weight:600;">W</td>' + awayTotals + '<td></td></tr></tbody></table></div>' +
+      '<div class="legend"><span><span class="legend-dot" style="background:#5a8dee;"></span>home win</span><span><span class="legend-dot" style="background:#d4a64a;"></span>away win</span><span><span class="legend-dot" style="background:#6e6e73;"></span>unplayed</span></div>';
+
+    bindTabs();
+    var cells = app.querySelectorAll('td[data-cell]');
+    for(var i=0;i<cells.length;i++){
+      cells[i].addEventListener('click', function(e){
+        var td = e.currentTarget;
+        var h = +td.getAttribute('data-h'), a = +td.getAttribute('data-a');
+        var cur = state.results[h][a];
+        state.results[h][a] = cur===null ? 'H' : cur==='H' ? 'A' : null;
+        state.submitted = false;
+        render();
+      });
+    }
+  }
+
+  function renderGridThreeMan(){
+    // Build a card-style overview matching the paper scorecard
+    var hSinglesScore=0, aSinglesScore=0, hDoublesScore=0, aDoublesScore=0;
+
+    var singlesRows = '';
+    for(var i=0;i<THREEMAN_SINGLES.length;i++){
+      var p = THREEMAN_SINGLES[i];
+      var h = p[0], a = p[1];
+      var r = state.results[h][a];
+      var hN = state.homePlayers[h] || ('Home ' + HOME_LETTERS[h]);
+      var aN = state.awayPlayers[a] || ('Away ' + (a+1));
+      var hScore = r==='H' ? '1' : (r==='A' ? '0' : '·');
+      var aScore = r==='A' ? '1' : (r==='H' ? '0' : '·');
+      var hCls = r==='H' ? 'home' : '';
+      var aCls = r==='A' ? 'away' : '';
+      if(r==='H') hSinglesScore++;
+      if(r==='A') aSinglesScore++;
+      singlesRows +=
+        '<tr>' +
+          '<td class="tm-pos">' + HOME_LETTERS[h] + '</td>' +
+          '<td class="tm-name">' + escapeHtml(hN) + '</td>' +
+          '<td class="tm-score ' + hCls + '">' + hScore + '</td>' +
+          '<td class="tm-vs">vs</td>' +
+          '<td class="tm-score ' + aCls + '">' + aScore + '</td>' +
+          '<td class="tm-name tm-right">' + escapeHtml(aN) + '</td>' +
+          '<td class="tm-pos">' + (a+1) + '</td>' +
+        '</tr>';
+    }
+
+    var doublesRows = '';
+    for(var d=0;d<THREEMAN_DOUBLES.length;d++){
+      var pair = THREEMAN_DOUBLES[d];
+      var hLabel = pair.home.map(function(i){ return HOME_LETTERS[i]; }).join('+');
+      var aLabel = pair.away.map(function(i){ return (i+1); }).join('+');
+      var hN = pair.home.map(function(i){ return state.homePlayers[i] || HOME_LETTERS[i]; }).join(' + ');
+      var aN = pair.away.map(function(i){ return state.awayPlayers[i] || (i+1); }).join(' + ');
+      var r = state.doublesResults[d];
+      var hScore = r==='H' ? '1' : (r==='A' ? '0' : '·');
+      var aScore = r==='A' ? '1' : (r==='H' ? '0' : '·');
+      var hCls = r==='H' ? 'home' : '';
+      var aCls = r==='A' ? 'away' : '';
+      if(r==='H') hDoublesScore++;
+      if(r==='A') aDoublesScore++;
+      doublesRows +=
+        '<tr>' +
+          '<td class="tm-pos">' + hLabel + '</td>' +
+          '<td class="tm-name">' + escapeHtml(hN) + '</td>' +
+          '<td class="tm-score ' + hCls + '">' + hScore + '</td>' +
+          '<td class="tm-vs">vs</td>' +
+          '<td class="tm-score ' + aCls + '">' + aScore + '</td>' +
+          '<td class="tm-name tm-right">' + escapeHtml(aN) + '</td>' +
+          '<td class="tm-pos">' + aLabel + '</td>' +
+        '</tr>';
+    }
+
+    var grand = totals();
+
+    app.innerHTML = headerHtml('grid') +
+      '<div class="grid-help">Read-only overview · edit scores in the Play tab</div>' +
+      '<div class="tm-card">' +
+        '<div class="tm-section-title">Singles</div>' +
+        '<table class="tm-table"><tbody>' + singlesRows + '</tbody></table>' +
+        '<div class="tm-subtotal"><span>Singles total</span><span>' + hSinglesScore + ' – ' + aSinglesScore + '</span></div>' +
+      '</div>' +
+      '<div class="tm-card">' +
+        '<div class="tm-section-title">Doubles</div>' +
+        '<table class="tm-table"><tbody>' + doublesRows + '</tbody></table>' +
+        '<div class="tm-subtotal"><span>Doubles total</span><span>' + hDoublesScore + ' – ' + aDoublesScore + '</span></div>' +
+      '</div>' +
+      '<div class="tm-grand"><span>Grand Total</span><span>' + grand.h + ' – ' + grand.a + '</span></div>';
+
+    bindTabs();
+  }
+
+  function renderGridJuniors(){
+    var t = totals();
+    var rowsHtml = '';
+    var hTotalPoints = 0, aTotalPoints = 0;
+    var hGameWins = 0, aGameWins = 0;
+
+    for(var g=0;g<JUNIORS_GAMES.length;g++){
+      var pair = JUNIORS_GAMES[g];
+      var hi = pair[0], ai = pair[1];
+      var hN = state.homePlayers[hi] || ('Home ' + (hi+1));
+      var aN = state.awayPlayers[ai] || ('Away ' + (ai+1));
+      var game = state.juniorsGames[g] || {home:0,away:0};
+      hTotalPoints += game.home;
+      aTotalPoints += game.away;
+      var winner = null;
+      if(game.home >= JUNIORS_RACE_TO){ winner = 'H'; hGameWins++; }
+      else if(game.away >= JUNIORS_RACE_TO){ winner = 'A'; aGameWins++; }
+      var hCls = winner==='H' ? 'home' : '';
+      var aCls = winner==='A' ? 'away' : '';
+      rowsHtml +=
+        '<tr>' +
+          '<td class="tm-pos">R' + (g+1) + '</td>' +
+          '<td class="tm-name">' + escapeHtml(hN) + '</td>' +
+          '<td class="tm-score ' + hCls + '">' + game.home + '</td>' +
+          '<td class="tm-vs">vs</td>' +
+          '<td class="tm-score ' + aCls + '">' + game.away + '</td>' +
+          '<td class="tm-name tm-right">' + escapeHtml(aN) + '</td>' +
+        '</tr>';
+    }
+
+    app.innerHTML = headerHtml('grid') +
+      '<div class="grid-help">Read-only overview · edit scores in the Play tab</div>' +
+      '<div class="tm-card">' +
+        '<div class="tm-section-title">Rounds (race to ' + JUNIORS_RACE_TO + ')</div>' +
+        '<table class="tm-table"><tbody>' + rowsHtml + '</tbody></table>' +
+        '<div class="tm-subtotal"><span>Rounds won</span><span>' + hGameWins + ' – ' + aGameWins + '</span></div>' +
+        '<div class="tm-subtotal"><span>Points scored</span><span>' + hTotalPoints + ' – ' + aTotalPoints + '</span></div>' +
+      '</div>' +
+      '<div class="tm-grand"><span>Match Score</span><span>' + t.h + ' – ' + t.a + '</span></div>';
+
+    bindTabs();
+  }
+
+  function renderSummary(){
+    var n = teamSize();
+    var t = totals();
+    var winning = t.h > t.a ? 'home' : t.a > t.h ? 'away' : 'tied';
+
+    var homeRowsHtml = '', awayRowsHtml = '';
+    var homeRows = [], awayRows = [];
+    for(var i=0;i<n;i++){
+      var pw = playerWins('H', i);
+      var name = state.homePlayers[i] || ('Home ' + HOME_LETTERS[i]);
+      homeRows.push({L:HOME_LETTERS[i], name:name, w:pw.w, l:pw.l});
+      homeRowsHtml += '<div class="summary-row"><span class="name-wrap"><strong>' + HOME_LETTERS[i] + '</strong><span class="name">' + escapeHtml(name) + '</span></span><span class="wl">' + pw.w + '–' + pw.l + '</span></div>';
+    }
+    for(var i=0;i<n;i++){
+      var pw = playerWins('A', i);
+      var name = state.awayPlayers[i] || ('Away ' + (i+1));
+      awayRows.push({L:(i+1), name:name, w:pw.w, l:pw.l});
+      awayRowsHtml += '<div class="summary-row"><span class="name-wrap"><strong>' + (i+1) + '</strong><span class="name">' + escapeHtml(name) + '</span></span><span class="wl">' + pw.w + '–' + pw.l + '</span></div>';
+    }
+
+    var fmt = leagueFormat();
+    var unit = (fmt === 'juniors') ? 'round' : 'frame';
+    var unitsLabel = t.played + ' of ' + t.total + ' ' + unit + (t.total===1?'':'s') + ' played';
+
+    var canSubmit = t.played === t.total;
+    var submitLabel = state.submitted ? '✓ Submitted to league' : 'Submit match to league';
+
+    var submitSection =
+      '<div class="submit-section">' +
+      '<button id="submit-btn" class="btn-success" style="width:100%;padding:12px;font-size:var(--fs-sm);" ' + (!canSubmit||state.submitted?'disabled':'') + '>' + submitLabel + '</button>' +
+      '<div id="submit-status" class="submit-status info">' +
+        (canSubmit ? (state.submitted ? 'Already submitted. Edit any score to re-enable.' : 'Sends match data to the league sheet') : (t.total-t.played) + ' ' + unit + (t.total-t.played===1?'':'s') + ' still to play') +
+      '</div>' +
+      '</div>';
+
+    app.innerHTML = headerHtml('summary') +
+      '<div class="summary-scores"><div class="score-card"><div class="score-card-label">' + escapeHtml(state.homeTeam || 'Home') + '</div><div class="score-card-value">' + t.h + '</div></div><div class="score-card"><div class="score-card-label">' + escapeHtml(state.awayTeam || 'Away') + '</div><div class="score-card-value">' + t.a + '</div></div></div>' +
+      '<div class="summary-status">' + unitsLabel + (t.remaining===0 ? ' · ' + (winning==='tied'?'match drawn':winning+' team wins') : '') + '</div>' +
+      '<div class="summary-cols"><div><div class="summary-col-title">Home players</div>' + homeRowsHtml + '</div><div><div class="summary-col-title">Away players</div>' + awayRowsHtml + '</div></div>' +
+      '<button id="export-btn" style="width:100%;padding:12px;font-size:var(--fs-sm);">Copy match summary</button>' +
+      '<div id="export-status" class="export-status"></div>' +
+      submitSection;
+
+    bindTabs();
+
+    app.querySelector('#export-btn').addEventListener('click', function(){
+      var lines = [];
+      lines.push('GNPA scorecard — ' + state.date);
+      if(state.league) lines.push('League: ' + state.league);
+      lines.push((state.homeTeam||'Home') + ' ' + t.h + ' – ' + t.a + ' ' + (state.awayTeam||'Away'));
+      lines.push('');
+      lines.push('Home players:');
+      for(var i=0;i<homeRows.length;i++){ lines.push('  ' + homeRows[i].L + ' ' + homeRows[i].name + ': ' + homeRows[i].w + 'W ' + homeRows[i].l + 'L'); }
+      lines.push('Away players:');
+      for(var i=0;i<awayRows.length;i++){ lines.push('  ' + awayRows[i].L + ' ' + awayRows[i].name + ': ' + awayRows[i].w + 'W ' + awayRows[i].l + 'L'); }
+      var txt = lines.join('\n');
+      var status = app.querySelector('#export-status');
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(txt).then(function(){
+          status.textContent = 'Copied to clipboard';
+          setTimeout(function(){ status.textContent = ''; }, 2500);
+        }).catch(function(){ status.textContent = 'Copy failed'; });
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = txt; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); status.textContent = 'Copied'; } catch(e){ status.textContent = 'Copy failed'; }
+        document.body.removeChild(ta);
+      }
+    });
+
+    var submitBtn = app.querySelector('#submit-btn');
+    if(submitBtn){
+      submitBtn.addEventListener('click', function(){
+        submitToLeague();
+      });
+    }
+  }
+
+  function submitToLeague(){
+    var status = app.querySelector('#submit-status');
+    var btn = app.querySelector('#submit-btn');
+
+    // Step 1: validate that all played frames have player names
+    var missing = validatePlayersForSubmit();
+    if(missing.missingHome.length || missing.missingAway.length){
+      var parts = [];
+      if(missing.missingHome.length) parts.push('Home ' + missing.missingHome.join(', '));
+      if(missing.missingAway.length) parts.push('Away ' + missing.missingAway.join(', '));
+      status.className = 'submit-status err';
+      status.textContent = 'Missing player names: ' + parts.join(' · ');
+      return;
+    }
+
+    // Step 2: fetch known names and check for likely typos
+    status.className = 'submit-status info';
+    status.textContent = 'Checking player names...';
+    btn.disabled = true;
+
+    fetchKnownNames().then(function(knownNames){
+      // Build current entries from current state
+      var n = teamSize();
+      var currentEntries = [];
+      for(var i=0;i<n;i++){
+        if(state.homePlayers[i] && state.homePlayers[i].trim()){
+          currentEntries.push({ side:'home', position: HOME_LETTERS[i], name: state.homePlayers[i].trim() });
+        }
+        if(state.awayPlayers[i] && state.awayPlayers[i].trim()){
+          currentEntries.push({ side:'away', position: String(i+1), name: state.awayPlayers[i].trim() });
+        }
+      }
+      var suggestions = findFuzzyMatches(currentEntries, knownNames);
+
+      if(suggestions.length){
+        // Re-enable button and show suggestion modal
+        btn.disabled = false;
+        status.className = 'submit-status info';
+        status.textContent = 'Possible typos found — review and fix';
+        showSuggestionsModal(suggestions, function(){
+          // Submit anyway: re-render to pick up applied changes, then send
+          render();
+          setTimeout(function(){
+            doActualSubmit();
+          }, 50);
+        }, function(){
+          // Cancel: re-render so any applied fixes show in inputs
+          render();
+        });
+      } else {
+        doActualSubmit();
+      }
+    });
+  }
+
+  function doActualSubmit(){
+    var status = app.querySelector('#submit-status');
+    var btn = app.querySelector('#submit-btn');
+    if(!status || !btn) return;
+    btn.disabled = true;
+    status.className = 'submit-status info';
+    status.textContent = 'Submitting...';
+
+    var n = teamSize();
+    var fmt = leagueFormat();
+    var t = totals();
+    var payload = {
+      date: state.date,
+      league: state.league,
+      format: fmt,
+      teamSize: n,
+      homeTeam: state.homeTeam,
+      awayTeam: state.awayTeam,
+      homeCaptain: state.homeCaptain,
+      awayCaptain: state.awayCaptain,
+      homeScore: t.h,
+      awayScore: t.a,
+      framesPlayed: t.played,
+      players: [],
+      frames: []
+    };
+
+    // Player rows (counts include doubles for 3-Man via playerWins;
+    // for Juniors, w/l are points scored/conceded)
+    for(var i=0;i<n;i++){
+      var pwH = playerWins('H', i);
+      payload.players.push({
+        side:'home', position: HOME_LETTERS[i], team: state.homeTeam,
+        name: state.homePlayers[i] || '', framesWon: pwH.w, framesPlayed: pwH.w + pwH.l
+      });
+      var pwA = playerWins('A', i);
+      payload.players.push({
+        side:'away', position: String(i+1), team: state.awayTeam,
+        name: state.awayPlayers[i] || '', framesWon: pwA.w, framesPlayed: pwA.w + pwA.l
+      });
+    }
+
+    // Frame log
+    if(fmt === 'threeman'){
+      for(var i=0;i<THREEMAN_SINGLES.length;i++){
+        var p = THREEMAN_SINGLES[i];
+        var hi = p[0], ai = p[1];
+        var r = state.results[hi][ai];
+        if(r){
+          payload.frames.push({
+            type: 'singles',
+            homePos: HOME_LETTERS[hi], awayPos: String(ai+1),
+            homePlayer: state.homePlayers[hi] || '', awayPlayer: state.awayPlayers[ai] || '',
+            winner: r === 'H' ? 'home' : 'away'
+          });
+        }
+      }
+      for(var d=0;d<THREEMAN_DOUBLES.length;d++){
+        var pair = THREEMAN_DOUBLES[d];
+        var dr = state.doublesResults[d];
+        if(dr){
+          payload.frames.push({
+            type: 'doubles',
+            homePos: pair.home.map(function(i){ return HOME_LETTERS[i]; }).join('+'),
+            awayPos: pair.away.map(function(i){ return (i+1); }).join('+'),
+            homePlayer: pair.home.map(function(i){ return state.homePlayers[i] || ''; }).join(' + '),
+            awayPlayer: pair.away.map(function(i){ return state.awayPlayers[i] || ''; }).join(' + '),
+            winner: dr === 'H' ? 'home' : 'away'
+          });
+        }
+      }
+    } else if(fmt === 'juniors'){
+      for(var g=0;g<JUNIORS_GAMES.length;g++){
+        var pair = JUNIORS_GAMES[g];
+        var hi = pair[0], ai = pair[1];
+        var game = state.juniorsGames[g] || {home:0,away:0};
+        var winner = null;
+        if(game.home >= JUNIORS_RACE_TO) winner = 'home';
+        else if(game.away >= JUNIORS_RACE_TO) winner = 'away';
+        if(winner){
+          payload.frames.push({
+            type: 'race',
+            homePos: HOME_LETTERS[hi], awayPos: String(ai+1),
+            homePlayer: state.homePlayers[hi] || '', awayPlayer: state.awayPlayers[ai] || '',
+            homePoints: game.home, awayPoints: game.away,
+            winner: winner
+          });
+        }
+      }
+    } else {
+      // Rotation format
+      for(var i=0;i<n;i++){
+        for(var j=0;j<n;j++){
+          var r = state.results[i][j];
+          if(r){
+            payload.frames.push({
+              type: 'singles',
+              homePos: HOME_LETTERS[i], awayPos: String(j+1),
+              homePlayer: state.homePlayers[i] || '', awayPlayer: state.awayPlayers[j] || '',
+              winner: r === 'H' ? 'home' : 'away'
+            });
+          }
+        }
+      }
+    }
+
+    fetch(LEAGUE_ENDPOINT, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    }).then(function(res){
+      return res.text().then(function(txt){
+        var data;
+        try { data = JSON.parse(txt); } catch(e) { data = { ok: res.ok, message: txt }; }
+        if(res.ok && data.ok !== false){
+          status.className = 'submit-status ok';
+          status.textContent = '✓ Submitted successfully';
+          state.submitted = true;
+          save();
+          setTimeout(render, 1200);
+        } else {
+          throw new Error(data.message || 'Server returned ' + res.status);
+        }
+      });
+    }).catch(function(err){
+      status.className = 'submit-status err';
+      status.textContent = 'Failed: ' + err.message;
+      btn.disabled = false;
+    });
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', render);
+  } else {
+    render();
+  }
+})();
+</script>
+</body>
+</html>
