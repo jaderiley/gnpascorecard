@@ -168,6 +168,7 @@
   .team-card .field-label { margin-bottom: var(--sp-1); }
   .team-card input { width: 100%; margin-bottom: var(--sp-1); }
   .team-card input:last-child { margin-bottom: 0; }
+  .team-card select { width: 100%; margin-bottom: var(--sp-1); padding: var(--sp-2); background: var(--bg); color: var(--text-primary); border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--fs-md); }
 
   .players-card { background: var(--surface); border: 1px solid var(--border); padding: var(--sp-3); border-radius: var(--radius); margin-top: var(--sp-3); }
   .players-section-title { font-size: var(--fs-sm); font-weight: 500; margin-bottom: var(--sp-3); color: var(--text); }
@@ -885,6 +886,76 @@
     });
   }
 
+  // Fetch team names for the current league and populate the Home/Away dropdowns
+  var cachedTeamNames = {};
+  function populateTeamDropdowns(){
+    if(!state.league) return;
+    var cacheKey = state.league;
+    if(cachedTeamNames[cacheKey]){
+      fillTeamSelects(cachedTeamNames[cacheKey]);
+      return;
+    }
+    var url = LEAGUE_ENDPOINT + '?action=knownNames&league=' + encodeURIComponent(state.league);
+    fetch(url, { method: 'GET' })
+      .then(function(res){ return res.text(); })
+      .then(function(txt){
+        try {
+          var data = JSON.parse(txt);
+          if(data && data.ok && Array.isArray(data.teams) && data.teams.length){
+            var teams = data.teams.sort();
+            cachedTeamNames[cacheKey] = teams;
+            fillTeamSelects(teams);
+          }
+        } catch(e){}
+      })
+      .catch(function(){});
+  }
+
+  function fillTeamSelects(teams){
+    var homeEl = document.getElementById('f-home');
+    var awayEl = document.getElementById('f-away');
+    if(!homeEl || !awayEl) return;
+    var opts = '<option value="">Select team...</option>';
+    for(var i=0;i<teams.length;i++){
+      opts += '<option value="' + escapeHtml(teams[i]) + '">' + escapeHtml(teams[i]) + '</option>';
+    }
+    opts += '<option value="__other__">Other (type manually)</option>';
+    homeEl.innerHTML = opts;
+    awayEl.innerHTML = opts;
+    // Restore saved selections — if saved value isn't in the list, show it as typed
+    restoreOrCustom(homeEl, state.homeTeam, 'homeTeam');
+    restoreOrCustom(awayEl, state.awayTeam, 'awayTeam');
+  }
+
+  function restoreOrCustom(selectEl, savedValue, stateKey){
+    if(!savedValue) return;
+    // Check if saved value is in the options
+    var found = false;
+    for(var i=0;i<selectEl.options.length;i++){
+      if(selectEl.options[i].value === savedValue){ found = true; break; }
+    }
+    if(found){
+      selectEl.value = savedValue;
+    } else {
+      // Saved value was typed manually previously — add it as an option
+      var opt = document.createElement('option');
+      opt.value = savedValue;
+      opt.textContent = savedValue;
+      selectEl.insertBefore(opt, selectEl.lastElementChild); // before "Other"
+      selectEl.value = savedValue;
+    }
+  }
+
+  // Title Case: capitalize first letter of each word
+  function titleCase(str){
+    return str.replace(/\S+/g, function(word){
+      // Don't capitalize short connectors like "van", "de", "vd", "du" etc
+      var lower = word.toLowerCase();
+      if(['van','de','vd','du','von','le','la','di','el','den','der','des'].indexOf(lower) >= 0) return lower;
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    });
+  }
+
   function findFuzzyMatches(currentEntries, knownNames){
     if(!knownNames || !knownNames.length) return [];
     var knownLower = {};
@@ -1291,7 +1362,7 @@
 
     app.innerHTML = headerHtml('setup') +
       '<div class="field-row stackable"><div class="field"><span class="field-label">Date</span><input id="f-date" type="date" value="' + state.date + '"></div><div class="field"><span class="field-label">League</span><select id="f-league">' + leagueOptions + '</select>' + formatNote + '</div></div>' +
-      '<div class="field-row"><div class="team-card"><div class="field-label">Home team</div><input id="f-home" type="text" value="' + escapeHtml(state.homeTeam) + '" placeholder="Team name"><input id="f-hcap" type="text" value="' + escapeHtml(state.homeCaptain) + '" placeholder="Captain"></div><div class="team-card"><div class="field-label">Away team</div><input id="f-away" type="text" value="' + escapeHtml(state.awayTeam) + '" placeholder="Team name"><input id="f-acap" type="text" value="' + escapeHtml(state.awayCaptain) + '" placeholder="Captain"></div></div>' +
+      '<div class="field-row"><div class="team-card"><div class="field-label">Home team</div><select id="f-home"><option value="">Select team...</option></select><input id="f-hcap" type="text" value="' + escapeHtml(state.homeCaptain) + '" placeholder="Captain"></div><div class="team-card"><div class="field-label">Away team</div><select id="f-away"><option value="">Select team...</option></select><input id="f-acap" type="text" value="' + escapeHtml(state.awayCaptain) + '" placeholder="Captain"></div></div>' +
       '<div class="players-card"><div class="players-section-title">Players (' + n + ' per side)</div><div class="players-grid"><div class="players-col">' + homeInputs + '</div><div class="players-col">' + awayInputs + '</div></div></div>' +
       '<div class="actions"><button id="reset-btn" class="btn-danger">Reset match</button><button id="start-btn" class="btn-primary">Start scoring →</button></div>' +
       '<div class="install-hint">Tip: on iPhone tap Share → "Add to Home Screen". On Android use Chrome\'s "Add to Home screen" menu. Works offline once installed.</div>';
@@ -1300,9 +1371,35 @@
     function bind(id, key){
       app.querySelector('#'+id).addEventListener('input', function(e){ state[key] = e.target.value; state.submitted = false; save(); });
     }
+    function bindSelect(id, key){
+      var el = app.querySelector('#'+id);
+      el.addEventListener('change', function(e){
+        if(e.target.value === '__other__'){
+          var typed = prompt('Type team name:');
+          if(typed && typed.trim()){
+            typed = titleCase(typed.trim());
+            var opt = document.createElement('option');
+            opt.value = typed;
+            opt.textContent = typed;
+            e.target.insertBefore(opt, e.target.lastElementChild);
+            e.target.value = typed;
+            state[key] = typed;
+          } else {
+            e.target.value = state[key] || '';
+          }
+        } else {
+          state[key] = e.target.value;
+        }
+        state.submitted = false;
+        save();
+      });
+    }
     bind('f-date','date');
-    bind('f-home','homeTeam'); bind('f-away','awayTeam');
+    bindSelect('f-home','homeTeam'); bindSelect('f-away','awayTeam');
     bind('f-hcap','homeCaptain'); bind('f-acap','awayCaptain');
+
+    // Populate team dropdowns when league is known
+    populateTeamDropdowns();
 
     // League dropdown — when it changes, resize the match if team size changed
     app.querySelector('#f-league').addEventListener('change', function(e){
@@ -1324,6 +1421,8 @@
 
       var doSwitch = function(){
         if(oldSize !== newSize) resizeForTeamSize(newSize);
+        // Clear team selections when switching leagues
+        if(oldLeague !== newLeague){ state.homeTeam = ''; state.awayTeam = ''; }
         state.submitted = false;
         save();
         render();
@@ -1353,10 +1452,20 @@
     var hInputs = app.querySelectorAll('input[data-home]');
     for(var i=0;i<hInputs.length;i++){
       hInputs[i].addEventListener('input', function(e){ state.homePlayers[+e.target.getAttribute('data-home')] = e.target.value; state.submitted = false; save(); });
+      hInputs[i].addEventListener('blur', function(e){
+        var idx = +e.target.getAttribute('data-home');
+        var v = e.target.value.trim();
+        if(v){ v = titleCase(v); e.target.value = v; state.homePlayers[idx] = v; save(); }
+      });
     }
     var aInputs = app.querySelectorAll('input[data-away]');
     for(var i=0;i<aInputs.length;i++){
       aInputs[i].addEventListener('input', function(e){ state.awayPlayers[+e.target.getAttribute('data-away')] = e.target.value; state.submitted = false; save(); });
+      aInputs[i].addEventListener('blur', function(e){
+        var idx = +e.target.getAttribute('data-away');
+        var v = e.target.value.trim();
+        if(v){ v = titleCase(v); e.target.value = v; state.awayPlayers[idx] = v; save(); }
+      });
     }
 
     app.querySelector('#start-btn').addEventListener('click', function(){
