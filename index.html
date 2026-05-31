@@ -88,6 +88,7 @@
     padding-right: 28px;
     width: 100%;
   }
+  select:disabled { opacity: 0.5; }
   input:focus, textarea:focus, select:focus { border-color: var(--accent); }
   button { cursor: pointer; user-select: none; touch-action: manipulation; }
   button:hover:not(:disabled) { background: var(--surface-2); }
@@ -173,10 +174,12 @@
   .players-card { background: var(--surface); border: 1px solid var(--border); padding: var(--sp-3); border-radius: var(--radius); margin-top: var(--sp-3); }
   .players-section-title { font-size: var(--fs-sm); font-weight: 500; margin-bottom: var(--sp-3); color: var(--text); }
   .players-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-2); }
-  .players-col { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
-  .player-row { display: flex; align-items: center; gap: var(--sp-1); min-width: 0; }
+  .players-col { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+  .player-row { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .player-row-inner { display: flex; align-items: center; gap: var(--sp-1); min-width: 0; }
   .player-letter { width: clamp(18px, 4.5vw, 24px); font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); text-align: center; flex-shrink: 0; }
-  .player-row input { flex: 1; min-width: 0; width: 100%; padding-left: var(--sp-2); padding-right: var(--sp-2); }
+  .player-row select { flex: 1; min-width: 0; }
+  .player-reserve { margin-left: calc(var(--sp-1) + clamp(18px, 4.5vw, 24px)); }
 
   .actions { display: flex; gap: var(--sp-2); margin-top: var(--sp-4); }
   .actions button { flex: 1; padding: var(--sp-3); font-size: var(--fs-sm); }
@@ -490,35 +493,6 @@
     line-height: 1.6;
   }
   .standings-loading { color: var(--text-secondary); padding: var(--sp-4); text-align: center; }
-
-  .suggest-list { display: flex; flex-direction: column; gap: var(--sp-1); margin-bottom: var(--sp-2); }
-  .suggest-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--sp-2);
-    padding: var(--sp-2);
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    transition: opacity 0.2s;
-  }
-  .suggest-row.applied { opacity: 0.5; }
-  .suggest-info { min-width: 0; flex: 1; }
-  .suggest-pos { font-size: var(--fs-xs); color: var(--text-tertiary); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .suggest-names { display: flex; align-items: center; gap: var(--sp-1); font-size: var(--fs-sm); flex-wrap: wrap; }
-  .suggest-typed { color: var(--danger); text-decoration: line-through; }
-  .suggest-arrow { color: var(--text-tertiary); }
-  .suggest-fix { color: var(--success); font-weight: 500; }
-  .suggest-apply {
-    padding: var(--sp-1) var(--sp-3);
-    font-size: var(--fs-xs);
-    background: var(--accent-bg);
-    border-color: var(--accent-border);
-    color: var(--accent);
-    flex-shrink: 0;
-    min-height: 32px;
-  }
 </style>
 </head>
 <body>
@@ -539,9 +513,7 @@
   // Hardcoded league submission endpoint
   var LEAGUE_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxOZ-8jH0bL-DjbWsLZx59sxUXR8PHlIS3mEr0Sv4YUhQWRVygt1Qt0zdlwCQqIsPqzJQ/exec';
 
-  // League definitions. Most use 'rotation' format (NxN grid).
-  // 3-Man uses 'threeman' format: 9 fixed singles + 3 doubles.
-  // Juniors uses 'juniors' format: 4 race-to-5 games.
+  // League definitions.
   var LEAGUES = [
     { name: 'Vets Tier 1', format: 'rotation', teamSize: 6 },
     { name: 'Vets Tier 2', format: 'rotation', teamSize: 6 },
@@ -567,7 +539,6 @@
   ];
 
   // Juniors fixed game order: [homeIdx, awayIdx]
-  // 1) H1vA1, 2) H2vA2, 3) H1vA2, 4) H2vA1
   var JUNIORS_GAMES = [
     [0,0],[1,1],[0,1],[1,0]
   ];
@@ -590,7 +561,7 @@
     return cfg ? cfg.format : 'rotation';
   }
 
-  // GNPA logo as inline SVG (red flower on shield)
+  // GNPA logo as inline SVG
   var LOGO_SVG = '<svg class="brand-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
     '<path d="M15 10 L85 10 L85 55 Q85 80 50 95 Q15 80 15 55 Z" fill="#fff" stroke="#1f6fc4" stroke-width="2"/>' +
     '<path d="M50 60 Q48 75 45 88" stroke="#2a8a3a" stroke-width="3" fill="none" stroke-linecap="round"/>' +
@@ -629,15 +600,14 @@
       homePlayers: ['','','','','',''],
       awayPlayers: ['','','','','',''],
       results: [[null,null,null,null,null,null],[null,null,null,null,null,null],[null,null,null,null,null,null],[null,null,null,null,null,null],[null,null,null,null,null,null],[null,null,null,null,null,null]],
-      doublesResults: [null, null, null], // 3-Man only
-      juniorsGames: [{home:0,away:0},{home:0,away:0},{home:0,away:0},{home:0,away:0}], // Juniors only
+      doublesResults: [null, null, null],
+      juniorsGames: [{home:0,away:0},{home:0,away:0},{home:0,away:0},{home:0,away:0}],
       currentRound: 0,
       view: 'setup',
       submitted: false
     };
   }
 
-  // Resize players and results arrays when league (and team size) changes
   function resizeForTeamSize(n){
     while(state.homePlayers.length < n) state.homePlayers.push('');
     while(state.awayPlayers.length < n) state.awayPlayers.push('');
@@ -665,6 +635,13 @@
     if(state.currentRound >= n) state.currentRound = n - 1;
   }
 
+  function clearPlayersForSide(side){
+    var n = teamSize();
+    for(var i = 0; i < n; i++){
+      state[side + 'Players'][i] = '';
+    }
+  }
+
   var state = load() || defaultState();
 
   function save(){ try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e){} }
@@ -684,9 +661,6 @@
     var h=0,a=0,played=0;
 
     if(fmt === 'juniors'){
-      // Juniors: score = total points across all games. "Played" counts a game as
-      // played once it has reached at least one score on either side OR one side
-      // has reached the race target.
       var totalGames = JUNIORS_GAMES.length;
       for(var i=0;i<totalGames;i++){
         var g = state.juniorsGames[i] || {home:0,away:0};
@@ -697,7 +671,6 @@
       return {h:h,a:a,played:played,total:totalGames,remaining:totalGames-played};
     }
 
-    // Singles (rotation + 3-man)
     for(var i=0;i<n;i++) for(var j=0;j<n;j++){
       var r = state.results[i] && state.results[i][j];
       if(r==='H'){h++;played++;}
@@ -706,7 +679,6 @@
 
     var totalFrames = n * n;
 
-    // Doubles (3-Man only)
     if(fmt === 'threeman'){
       totalFrames += THREEMAN_DOUBLES.length;
       for(var i=0;i<THREEMAN_DOUBLES.length;i++){
@@ -725,8 +697,6 @@
     var w=0,l=0;
 
     if(fmt === 'juniors'){
-      // For Juniors, w/l for a player = points scored / points conceded
-      // across the 2 rounds they played
       for(var g=0;g<JUNIORS_GAMES.length;g++){
         var pair = JUNIORS_GAMES[g];
         var hi = pair[0], ai = pair[1];
@@ -742,7 +712,6 @@
       return {w:w,l:l};
     }
 
-    // Singles
     if(side==='H'){
       for(var j=0;j<n;j++){
         var r = state.results[idx] && state.results[idx][j];
@@ -757,7 +726,6 @@
       }
     }
 
-    // Doubles credit (3-Man only)
     if(fmt === 'threeman'){
       for(var d=0;d<THREEMAN_DOUBLES.length;d++){
         var dr = state.doublesResults && state.doublesResults[d];
@@ -849,62 +817,29 @@
     return { missingHome: missingHome, missingAway: missingAway };
   }
 
-  function levenshtein(a, b){
-    a = a.toLowerCase(); b = b.toLowerCase();
-    if(a === b) return 0;
-    if(!a.length) return b.length;
-    if(!b.length) return a.length;
-    var prev = []; for(var i=0;i<=b.length;i++) prev.push(i);
-    for(var i=1;i<=a.length;i++){
-      var curr = [i];
-      for(var j=1;j<=b.length;j++){
-        var cost = a.charAt(i-1) === b.charAt(j-1) ? 0 : 1;
-        curr.push(Math.min(curr[j-1]+1, prev[j]+1, prev[j-1]+cost));
-      }
-      prev = curr;
-    }
-    return prev[b.length];
-  }
+  // ============ ROSTER FETCHING (NEW) ============
+  // Replaces the previous knownNames-based team dropdown. One call per league
+  // returns teams + per-team rosters from the Historical Seed tab.
+  var cachedRosters = {}; // league -> { teams: [], rosters: { team: [players] } }
 
-  function fetchKnownNames(team){
-    return new Promise(function(resolve){
-      try {
-        var url = LEAGUE_ENDPOINT + '?action=knownNames';
-        if(state.league) url += '&league=' + encodeURIComponent(state.league);
-        if(team) url += '&team=' + encodeURIComponent(team);
-        fetch(url, { method: 'GET' })
-          .then(function(res){ return res.text(); })
-          .then(function(txt){
-            try {
-              var data = JSON.parse(txt);
-              if(data && data.ok && Array.isArray(data.names)) resolve(data.names);
-              else resolve([]);
-            } catch(e){ resolve([]); }
-          })
-          .catch(function(){ resolve([]); });
-      } catch(e){ resolve([]); }
-    });
-  }
-
-  // Fetch team names for the current league and populate the Home/Away dropdowns
-  var cachedTeamNames = {};
   function populateTeamDropdowns(){
     if(!state.league) return;
-    var cacheKey = state.league;
-    if(cachedTeamNames[cacheKey]){
-      fillTeamSelects(cachedTeamNames[cacheKey]);
+    var league = state.league;
+    if(cachedRosters[league]){
+      fillTeamSelects(cachedRosters[league].teams);
+      populatePlayerDropdowns();
       return;
     }
-    var url = LEAGUE_ENDPOINT + '?action=knownNames&league=' + encodeURIComponent(state.league);
+    var url = LEAGUE_ENDPOINT + '?action=roster&league=' + encodeURIComponent(league);
     fetch(url, { method: 'GET' })
       .then(function(res){ return res.text(); })
       .then(function(txt){
         try {
           var data = JSON.parse(txt);
-          if(data && data.ok && Array.isArray(data.teams) && data.teams.length){
-            var teams = data.teams.sort();
-            cachedTeamNames[cacheKey] = teams;
-            fillTeamSelects(teams);
+          if(data && data.ok && Array.isArray(data.teams)){
+            cachedRosters[league] = { teams: data.teams, rosters: data.rosters || {} };
+            fillTeamSelects(data.teams);
+            populatePlayerDropdowns();
           }
         } catch(e){}
       })
@@ -919,69 +854,54 @@
     for(var i=0;i<teams.length;i++){
       opts += '<option value="' + escapeHtml(teams[i]) + '">' + escapeHtml(teams[i]) + '</option>';
     }
-    opts += '<option value="__other__">Other (type manually)</option>';
     homeEl.innerHTML = opts;
     awayEl.innerHTML = opts;
-    // Restore saved selections — if saved value isn't in the list, show it as typed
-    restoreOrCustom(homeEl, state.homeTeam, 'homeTeam');
-    restoreOrCustom(awayEl, state.awayTeam, 'awayTeam');
+    if(state.homeTeam) homeEl.value = state.homeTeam;
+    if(state.awayTeam) awayEl.value = state.awayTeam;
   }
 
-  function restoreOrCustom(selectEl, savedValue, stateKey){
-    if(!savedValue) return;
-    // Check if saved value is in the options
-    var found = false;
-    for(var i=0;i<selectEl.options.length;i++){
-      if(selectEl.options[i].value === savedValue){ found = true; break; }
-    }
-    if(found){
-      selectEl.value = savedValue;
-    } else {
-      // Saved value was typed manually previously — add it as an option
-      var opt = document.createElement('option');
-      opt.value = savedValue;
-      opt.textContent = savedValue;
-      selectEl.insertBefore(opt, selectEl.lastElementChild); // before "Other"
-      selectEl.value = savedValue;
+  function populatePlayerDropdowns(){
+    var league = state.league;
+    var rosters = cachedRosters[league] && cachedRosters[league].rosters;
+    if(!rosters) return;
+    var n = teamSize();
+    for(var i = 0; i < n; i++){
+      fillPlayerSelect('home', i, state.homeTeam, rosters);
+      fillPlayerSelect('away', i, state.awayTeam, rosters);
     }
   }
 
-  // Title Case: capitalize first letter of each word
+  function fillPlayerSelect(side, idx, team, rosters){
+    var sel = document.getElementById('p-' + side + '-' + idx);
+    if(!sel) return;
+    var players = (team && rosters[team]) ? rosters[team] : [];
+    var currentVal = state[side + 'Players'][idx] || '';
+    var inRoster = players.indexOf(currentVal) >= 0;
+    var isReserve = currentVal && !inRoster;
+
+    var opts = '<option value="">' + (team ? '— pick player —' : '— pick team first —') + '</option>';
+    for(var i = 0; i < players.length; i++){
+      var p = players[i];
+      opts += '<option value="' + escapeHtml(p) + '"' + (p === currentVal ? ' selected' : '') + '>' + escapeHtml(p) + '</option>';
+    }
+    opts += '<option value="__reserve__"' + (isReserve ? ' selected' : '') + '>Reserve (type name)</option>';
+    sel.innerHTML = opts;
+    sel.disabled = !team;
+
+    var resInput = document.getElementById('p-' + side + '-' + idx + '-res');
+    if(resInput){
+      resInput.style.display = isReserve ? '' : 'none';
+      resInput.value = isReserve ? currentVal : '';
+    }
+  }
+
+  // Title Case: capitalize first letter of each word, except common connectors
   function titleCase(str){
     return str.replace(/\S+/g, function(word){
-      // Don't capitalize short connectors like "van", "de", "vd", "du" etc
       var lower = word.toLowerCase();
       if(['van','de','vd','du','von','le','la','di','el','den','der','des'].indexOf(lower) >= 0) return lower;
       return word.charAt(0).toUpperCase() + word.slice(1);
     });
-  }
-
-  function findFuzzyMatches(currentEntries, knownNames){
-    if(!knownNames || !knownNames.length) return [];
-    var knownLower = {};
-    for(var i=0;i<knownNames.length;i++){
-      knownLower[knownNames[i].toLowerCase().trim()] = knownNames[i];
-    }
-    var suggestions = [];
-    for(var i=0;i<currentEntries.length;i++){
-      var entry = currentEntries[i];
-      var lower = entry.name.toLowerCase();
-      if(knownLower[lower]) continue;
-      var best = null, bestDist = 99;
-      for(var k=0;k<knownNames.length;k++){
-        var kn = knownNames[k];
-        var dist = levenshtein(entry.name, kn);
-        var threshold = entry.name.length <= 4 ? 1 : 2;
-        if(dist <= threshold && dist < bestDist){ best = kn; bestDist = dist; }
-      }
-      if(best){
-        suggestions.push({
-          side: entry.side, position: entry.position,
-          typed: entry.name, suggested: best
-        });
-      }
-    }
-    return suggestions;
   }
 
   function showConfirmModal(title, body, confirmLabel, cancelLabel, onConfirm, onCancel){
@@ -1013,88 +933,11 @@
     });
   }
 
-  // Modal that shows fuzzy-match suggestions with per-row Apply buttons,
-  // plus Submit anyway / Cancel actions.
-  function showSuggestionsModal(suggestions, onSubmitAnyway, onCancel){
-    var existing = document.getElementById('gnpa-modal');
-    if(existing) existing.remove();
-
-    var rowsHtml = '';
-    for(var i=0;i<suggestions.length;i++){
-      var s = suggestions[i];
-      rowsHtml +=
-        '<div class="suggest-row" data-idx="' + i + '">' +
-          '<div class="suggest-info">' +
-            '<div class="suggest-pos">' + (s.side === 'home' ? 'Home ' : 'Away ') + escapeHtml(String(s.position)) + '</div>' +
-            '<div class="suggest-names">' +
-              '<span class="suggest-typed">' + escapeHtml(s.typed) + '</span>' +
-              '<span class="suggest-arrow">→</span>' +
-              '<span class="suggest-fix">' + escapeHtml(s.suggested) + '</span>' +
-            '</div>' +
-          '</div>' +
-          '<button class="suggest-apply" data-apply="' + i + '">Use</button>' +
-        '</div>';
-    }
-
-    var backdrop = document.createElement('div');
-    backdrop.id = 'gnpa-modal';
-    backdrop.className = 'modal-backdrop';
-    backdrop.innerHTML =
-      '<div class="modal-card" style="max-width:480px;">' +
-        '<div class="modal-title">Possible name typos</div>' +
-        '<div class="modal-body">These names look like existing players in the league. Tap "Use" to fix any typos before submitting:</div>' +
-        '<div class="suggest-list">' + rowsHtml + '</div>' +
-        '<div class="modal-actions" style="margin-top:var(--sp-3);">' +
-          '<button id="gnpa-modal-cancel">Cancel</button>' +
-          '<button id="gnpa-modal-confirm" class="btn-success">Submit anyway</button>' +
-        '</div>' +
-      '</div>';
-    document.body.appendChild(backdrop);
-
-    // Apply suggestion handler — modifies state.players, refreshes the row
-    backdrop.querySelectorAll('.suggest-apply').forEach(function(btn){
-      btn.addEventListener('click', function(e){
-        var idx = +e.currentTarget.getAttribute('data-apply');
-        var s = suggestions[idx];
-        var posIdx;
-        if(s.side === 'home'){
-          posIdx = HOME_LETTERS.indexOf(s.position);
-          if(posIdx >= 0) state.homePlayers[posIdx] = s.suggested;
-        } else {
-          posIdx = parseInt(s.position, 10) - 1;
-          if(posIdx >= 0) state.awayPlayers[posIdx] = s.suggested;
-        }
-        save();
-        // Mark the row as applied
-        var row = backdrop.querySelector('.suggest-row[data-idx="'+idx+'"]');
-        if(row){
-          row.classList.add('applied');
-          var btn = row.querySelector('.suggest-apply');
-          btn.textContent = '✓';
-          btn.disabled = true;
-        }
-      });
-    });
-
-    var close = function(){ backdrop.remove(); };
-    backdrop.querySelector('#gnpa-modal-confirm').addEventListener('click', function(){
-      close();
-      if(onSubmitAnyway) onSubmitAnyway();
-    });
-    backdrop.querySelector('#gnpa-modal-cancel').addEventListener('click', function(){
-      close();
-      if(onCancel) onCancel();
-    });
-  }
-
   // ============ STANDINGS OVERLAY ============
-  // Local cache of fetched data to avoid re-hitting the network
-  // when toggling Team/Player tabs within the same session.
   var standingsCache = { leagues: null, byLeague: {} };
   var standingsView = { league: null, tab: 'team' };
 
   function openStandings(){
-    // Default to the current league, fall back to first configured
     if(!standingsView.league){
       standingsView.league = state.league || '';
     }
@@ -1143,7 +986,6 @@
       renderStandingsOverlay();
     });
 
-    // Populate league dropdown — use configured leagues if cached, else fetch
     if(standingsCache.leagues){
       populateLeagueDropdown(leagueSelect, standingsCache.leagues);
       loadStandingsBody();
@@ -1329,13 +1171,26 @@
     }
   }
 
+  // Build one player slot's HTML (select + hidden reserve input).
+  function playerSlotHtml(side, idx, label){
+    return '<div class="player-row">' +
+      '<div class="player-row-inner">' +
+        '<span class="player-letter">' + label + '</span>' +
+        '<select id="p-' + side + '-' + idx + '" data-pslot data-side="' + side + '" data-idx="' + idx + '">' +
+          '<option value="">— pick team first —</option>' +
+        '</select>' +
+      '</div>' +
+      '<input id="p-' + side + '-' + idx + '-res" class="player-reserve" type="text" placeholder="Reserve name" data-pres data-side="' + side + '" data-idx="' + idx + '" style="display:none;">' +
+      '</div>';
+  }
+
   function renderSetup(){
     var n = teamSize();
     var fmt = leagueFormat();
     var homeInputs = '', awayInputs = '';
     for(var i=0;i<n;i++){
-      homeInputs += '<div class="player-row"><span class="player-letter">' + HOME_LETTERS[i] + '</span><input data-home="' + i + '" type="text" value="' + escapeHtml(state.homePlayers[i] || '') + '" placeholder="Home ' + HOME_LETTERS[i] + '"></div>';
-      awayInputs += '<div class="player-row"><span class="player-letter">' + (i+1) + '</span><input data-away="' + i + '" type="text" value="' + escapeHtml(state.awayPlayers[i] || '') + '" placeholder="Away ' + (i+1) + '"></div>';
+      homeInputs += playerSlotHtml('home', i, HOME_LETTERS[i]);
+      awayInputs += playerSlotHtml('away', i, (i+1));
     }
 
     var leagueOptions = '<option value="">Select league...</option>';
@@ -1362,56 +1217,48 @@
 
     app.innerHTML = headerHtml('setup') +
       '<div class="field-row stackable"><div class="field"><span class="field-label">Date</span><input id="f-date" type="date" value="' + state.date + '"></div><div class="field"><span class="field-label">League</span><select id="f-league">' + leagueOptions + '</select>' + formatNote + '</div></div>' +
-      '<div class="field-row"><div class="team-card"><div class="field-label">Home team</div><select id="f-home"><option value="">Select team...</option></select><input id="f-hcap" type="text" value="' + escapeHtml(state.homeCaptain) + '" placeholder="Captain"></div><div class="team-card"><div class="field-label">Away team</div><select id="f-away"><option value="">Select team...</option></select><input id="f-acap" type="text" value="' + escapeHtml(state.awayCaptain) + '" placeholder="Captain"></div></div>' +
+      '<div class="field-row"><div class="team-card"><div class="field-label">Home team</div><select id="f-home"><option value="">' + (state.league ? 'Loading teams...' : 'Pick league first') + '</option></select><input id="f-hcap" type="text" value="' + escapeHtml(state.homeCaptain) + '" placeholder="Captain"></div><div class="team-card"><div class="field-label">Away team</div><select id="f-away"><option value="">' + (state.league ? 'Loading teams...' : 'Pick league first') + '</option></select><input id="f-acap" type="text" value="' + escapeHtml(state.awayCaptain) + '" placeholder="Captain"></div></div>' +
       '<div class="players-card"><div class="players-section-title">Players (' + n + ' per side)</div><div class="players-grid"><div class="players-col">' + homeInputs + '</div><div class="players-col">' + awayInputs + '</div></div></div>' +
       '<div class="actions"><button id="reset-btn" class="btn-danger">Reset match</button><button id="start-btn" class="btn-primary">Start scoring →</button></div>' +
       '<div class="install-hint">Tip: on iPhone tap Share → "Add to Home Screen". On Android use Chrome\'s "Add to Home screen" menu. Works offline once installed.</div>';
 
     bindTabs();
+
     function bind(id, key){
       app.querySelector('#'+id).addEventListener('input', function(e){ state[key] = e.target.value; state.submitted = false; save(); });
     }
-    function bindSelect(id, key){
+    function bindTeamSelect(id, key, side){
       var el = app.querySelector('#'+id);
       el.addEventListener('change', function(e){
-        if(e.target.value === '__other__'){
-          var typed = prompt('Type team name:');
-          if(typed && typed.trim()){
-            typed = titleCase(typed.trim());
-            var opt = document.createElement('option');
-            opt.value = typed;
-            opt.textContent = typed;
-            e.target.insertBefore(opt, e.target.lastElementChild);
-            e.target.value = typed;
-            state[key] = typed;
-          } else {
-            e.target.value = state[key] || '';
-          }
-        } else {
-          state[key] = e.target.value;
-        }
+        state[key] = e.target.value;
+        // Different team → previous player selections are invalid for the new roster
+        clearPlayersForSide(side);
         state.submitted = false;
         save();
+        populatePlayerDropdowns();
       });
     }
     bind('f-date','date');
-    bindSelect('f-home','homeTeam'); bindSelect('f-away','awayTeam');
-    bind('f-hcap','homeCaptain'); bind('f-acap','awayCaptain');
+    bindTeamSelect('f-home','homeTeam','home');
+    bindTeamSelect('f-away','awayTeam','away');
+    bind('f-hcap','homeCaptain');
+    bind('f-acap','awayCaptain');
 
-    // Populate team dropdowns when league is known
+    // Kick off team + roster fetch for the current league. Player dropdowns
+    // start showing "— pick team first —" and fill in when teams arrive and
+    // a team is chosen.
     populateTeamDropdowns();
 
-    // League dropdown — when it changes, resize the match if team size changed
+    // League dropdown — when it changes, possibly resize the match and clear
+    // teams/players because rosters differ across leagues.
     app.querySelector('#f-league').addEventListener('change', function(e){
       var newLeague = e.target.value;
       var oldLeague = state.league;
       var oldSize = teamSize();
 
-      // Tentatively apply to compute new size
       state.league = newLeague;
       var newSize = teamSize();
 
-      // Check for any existing scores
       var hasData = false;
       for(var i=0;i<state.results.length && !hasData;i++){
         for(var j=0;j<state.results[i].length && !hasData;j++){
@@ -1421,8 +1268,13 @@
 
       var doSwitch = function(){
         if(oldSize !== newSize) resizeForTeamSize(newSize);
-        // Clear team selections when switching leagues
-        if(oldLeague !== newLeague){ state.homeTeam = ''; state.awayTeam = ''; }
+        if(oldLeague !== newLeague){
+          state.homeTeam = '';
+          state.awayTeam = '';
+          // Wipe player slots — different league has a different roster
+          for(var k=0;k<state.homePlayers.length;k++) state.homePlayers[k] = '';
+          for(var k=0;k<state.awayPlayers.length;k++) state.awayPlayers[k] = '';
+        }
         state.submitted = false;
         save();
         render();
@@ -1435,7 +1287,6 @@
       };
 
       if(oldSize !== newSize && hasData){
-        // Show a custom in-app modal because confirm() can be unreliable in PWAs
         showConfirmModal(
           'Switch to ' + newSize + '-man format?',
           'You have scores entered. Frames in shared positions will be kept; any others will be discarded.',
@@ -1449,22 +1300,57 @@
       }
     });
 
-    var hInputs = app.querySelectorAll('input[data-home]');
-    for(var i=0;i<hInputs.length;i++){
-      hInputs[i].addEventListener('input', function(e){ state.homePlayers[+e.target.getAttribute('data-home')] = e.target.value; state.submitted = false; save(); });
-      hInputs[i].addEventListener('blur', function(e){
-        var idx = +e.target.getAttribute('data-home');
-        var v = e.target.value.trim();
-        if(v){ v = titleCase(v); e.target.value = v; state.homePlayers[idx] = v; save(); }
+    // Player select handler — choosing a roster name updates state directly;
+    // choosing "Reserve (type name)" reveals the reserve text input.
+    var pSlots = app.querySelectorAll('select[data-pslot]');
+    for(var i = 0; i < pSlots.length; i++){
+      pSlots[i].addEventListener('change', function(e){
+        var sel = e.currentTarget;
+        var side = sel.getAttribute('data-side');
+        var idx = +sel.getAttribute('data-idx');
+        var val = sel.value;
+        var resInput = document.getElementById('p-' + side + '-' + idx + '-res');
+        if(val === '__reserve__'){
+          if(resInput){
+            resInput.style.display = '';
+            resInput.value = '';
+            resInput.focus();
+          }
+          state[side + 'Players'][idx] = '';
+        } else {
+          if(resInput){
+            resInput.style.display = 'none';
+            resInput.value = '';
+          }
+          state[side + 'Players'][idx] = val;
+        }
+        state.submitted = false;
+        save();
       });
     }
-    var aInputs = app.querySelectorAll('input[data-away]');
-    for(var i=0;i<aInputs.length;i++){
-      aInputs[i].addEventListener('input', function(e){ state.awayPlayers[+e.target.getAttribute('data-away')] = e.target.value; state.submitted = false; save(); });
-      aInputs[i].addEventListener('blur', function(e){
-        var idx = +e.target.getAttribute('data-away');
-        var v = e.target.value.trim();
-        if(v){ v = titleCase(v); e.target.value = v; state.awayPlayers[idx] = v; save(); }
+
+    // Reserve input handler — store the typed name as-is; title-case on blur.
+    var pReserves = app.querySelectorAll('input[data-pres]');
+    for(var i = 0; i < pReserves.length; i++){
+      pReserves[i].addEventListener('input', function(e){
+        var inp = e.currentTarget;
+        var side = inp.getAttribute('data-side');
+        var idx = +inp.getAttribute('data-idx');
+        state[side + 'Players'][idx] = inp.value;
+        state.submitted = false;
+        save();
+      });
+      pReserves[i].addEventListener('blur', function(e){
+        var inp = e.currentTarget;
+        var v = inp.value.trim();
+        if(v){
+          v = titleCase(v);
+          inp.value = v;
+          var idx = +inp.getAttribute('data-idx');
+          var side = inp.getAttribute('data-side');
+          state[side + 'Players'][idx] = v;
+          save();
+        }
       });
     }
 
@@ -1531,7 +1417,6 @@
   }
 
   function renderPlayThreeMan(){
-    // Round structure: 3 singles rounds + 1 doubles round = 4 total
     var TOTAL_ROUNDS = 4;
     var r = state.currentRound;
     if(r >= TOTAL_ROUNDS) { r = state.currentRound = TOTAL_ROUNDS - 1; }
@@ -1540,7 +1425,6 @@
     var roundLabel, framesHtml = '';
 
     if(r < 3){
-      // Singles rounds: 3 frames each, slice from THREEMAN_SINGLES
       roundLabel = 'Round ' + (r+1) + ' of 4 · Singles';
       var start = r * 3;
       for(var slot=0; slot<3; slot++){
@@ -1561,7 +1445,6 @@
           '</div>';
       }
     } else {
-      // Doubles round
       roundLabel = 'Round 4 of 4 · Doubles';
       for(var d=0;d<THREEMAN_DOUBLES.length;d++){
         var pair = THREEMAN_DOUBLES[d];
@@ -1639,7 +1522,7 @@
   }
 
   function renderPlayJuniors(){
-    var TOTAL_ROUNDS = JUNIORS_GAMES.length; // 4
+    var TOTAL_ROUNDS = JUNIORS_GAMES.length;
     var r = state.currentRound;
     if(r >= TOTAL_ROUNDS) { r = state.currentRound = TOTAL_ROUNDS - 1; }
     if(r < 0) { r = state.currentRound = 0; }
@@ -1663,7 +1546,6 @@
         '</div>';
     }
 
-    // Match-running totals across all 4 games
     var t = totals();
 
     app.innerHTML = headerHtml('play') +
@@ -1792,7 +1674,6 @@
   }
 
   function renderGridThreeMan(){
-    // Build a card-style overview matching the paper scorecard
     var hSinglesScore=0, aSinglesScore=0, hDoublesScore=0, aDoublesScore=0;
 
     var singlesRows = '';
@@ -1990,7 +1871,6 @@
     var status = app.querySelector('#submit-status');
     var btn = app.querySelector('#submit-btn');
 
-    // Step 1: validate that all played frames have player names
     var missing = validatePlayersForSubmit();
     if(missing.missingHome.length || missing.missingAway.length){
       var parts = [];
@@ -2001,44 +1881,10 @@
       return;
     }
 
-    // Step 2: fetch known names and check for likely typos
-    status.className = 'submit-status info';
-    status.textContent = 'Checking player names...';
-    btn.disabled = true;
-
-    fetchKnownNames().then(function(knownNames){
-      // Build current entries from current state
-      var n = teamSize();
-      var currentEntries = [];
-      for(var i=0;i<n;i++){
-        if(state.homePlayers[i] && state.homePlayers[i].trim()){
-          currentEntries.push({ side:'home', position: HOME_LETTERS[i], name: state.homePlayers[i].trim() });
-        }
-        if(state.awayPlayers[i] && state.awayPlayers[i].trim()){
-          currentEntries.push({ side:'away', position: String(i+1), name: state.awayPlayers[i].trim() });
-        }
-      }
-      var suggestions = findFuzzyMatches(currentEntries, knownNames);
-
-      if(suggestions.length){
-        // Re-enable button and show suggestion modal
-        btn.disabled = false;
-        status.className = 'submit-status info';
-        status.textContent = 'Possible typos found — review and fix';
-        showSuggestionsModal(suggestions, function(){
-          // Submit anyway: re-render to pick up applied changes, then send
-          render();
-          setTimeout(function(){
-            doActualSubmit();
-          }, 50);
-        }, function(){
-          // Cancel: re-render so any applied fixes show in inputs
-          render();
-        });
-      } else {
-        doActualSubmit();
-      }
-    });
+    // Players come from a server-side roster dropdown now, so the legacy
+    // fuzzy-match step is unnecessary — names are either roster-exact or
+    // explicit reserves typed by the user. Submit directly.
+    doActualSubmit();
   }
 
   function doActualSubmit(){
@@ -2068,8 +1914,6 @@
       frames: []
     };
 
-    // Player rows (counts include doubles for 3-Man via playerWins;
-    // for Juniors, w/l are points scored/conceded)
     for(var i=0;i<n;i++){
       var pwH = playerWins('H', i);
       payload.players.push({
@@ -2083,7 +1927,6 @@
       });
     }
 
-    // Frame log
     if(fmt === 'threeman'){
       for(var i=0;i<THREEMAN_SINGLES.length;i++){
         var p = THREEMAN_SINGLES[i];
@@ -2131,7 +1974,6 @@
         }
       }
     } else {
-      // Rotation format
       for(var i=0;i<n;i++){
         for(var j=0;j<n;j++){
           var r = state.results[i][j];
