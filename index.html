@@ -869,6 +869,8 @@
       fillPlayerSelect('home', i, state.homeTeam, rosters);
       fillPlayerSelect('away', i, state.awayTeam, rosters);
     }
+    fillCaptainSelect('home', state.homeTeam, rosters);
+    fillCaptainSelect('away', state.awayTeam, rosters);
   }
 
   function fillPlayerSelect(side, idx, team, rosters){
@@ -889,6 +891,30 @@
     sel.disabled = !team;
 
     var resInput = document.getElementById('p-' + side + '-' + idx + '-res');
+    if(resInput){
+      resInput.style.display = isReserve ? '' : 'none';
+      resInput.value = isReserve ? currentVal : '';
+    }
+  }
+
+  function fillCaptainSelect(side, team, rosters){
+    var sel = document.getElementById(side === 'home' ? 'f-hcap' : 'f-acap');
+    if(!sel) return;
+    var players = (team && rosters[team]) ? rosters[team] : [];
+    var currentVal = state[side + 'Captain'] || '';
+    var inRoster = players.indexOf(currentVal) >= 0;
+    var isReserve = currentVal && !inRoster;
+
+    var opts = '<option value="">' + (team ? '— pick captain —' : '— pick team first —') + '</option>';
+    for(var i = 0; i < players.length; i++){
+      var p = players[i];
+      opts += '<option value="' + escapeHtml(p) + '"' + (p === currentVal ? ' selected' : '') + '>' + escapeHtml(p) + '</option>';
+    }
+    opts += '<option value="__reserve__"' + (isReserve ? ' selected' : '') + '>Reserve (type name)</option>';
+    sel.innerHTML = opts;
+    sel.disabled = !team;
+
+    var resInput = document.getElementById(side === 'home' ? 'f-hcap-res' : 'f-acap-res');
     if(resInput){
       resInput.style.display = isReserve ? '' : 'none';
       resInput.value = isReserve ? currentVal : '';
@@ -1217,7 +1243,7 @@
 
     app.innerHTML = headerHtml('setup') +
       '<div class="field-row stackable"><div class="field"><span class="field-label">Date</span><input id="f-date" type="date" value="' + state.date + '"></div><div class="field"><span class="field-label">League</span><select id="f-league">' + leagueOptions + '</select>' + formatNote + '</div></div>' +
-      '<div class="field-row"><div class="team-card"><div class="field-label">Home team</div><select id="f-home"><option value="">' + (state.league ? 'Loading teams...' : 'Pick league first') + '</option></select><input id="f-hcap" type="text" value="' + escapeHtml(state.homeCaptain) + '" placeholder="Captain"></div><div class="team-card"><div class="field-label">Away team</div><select id="f-away"><option value="">' + (state.league ? 'Loading teams...' : 'Pick league first') + '</option></select><input id="f-acap" type="text" value="' + escapeHtml(state.awayCaptain) + '" placeholder="Captain"></div></div>' +
+      '<div class="field-row"><div class="team-card"><div class="field-label">Home team</div><select id="f-home"><option value="">' + (state.league ? 'Loading teams...' : 'Pick league first') + '</option></select><select id="f-hcap" data-cside="home"><option value="">— pick team first —</option></select><input id="f-hcap-res" type="text" placeholder="Reserve captain name" data-cres data-cside="home" style="display:none;"></div><div class="team-card"><div class="field-label">Away team</div><select id="f-away"><option value="">' + (state.league ? 'Loading teams...' : 'Pick league first') + '</option></select><select id="f-acap" data-cside="away"><option value="">— pick team first —</option></select><input id="f-acap-res" type="text" placeholder="Reserve captain name" data-cres data-cside="away" style="display:none;"></div></div>' +
       '<div class="players-card"><div class="players-section-title">Players (' + n + ' per side)</div><div class="players-grid"><div class="players-col">' + homeInputs + '</div><div class="players-col">' + awayInputs + '</div></div></div>' +
       '<div class="actions"><button id="reset-btn" class="btn-danger">Reset match</button><button id="start-btn" class="btn-primary">Start scoring →</button></div>' +
       '<div class="install-hint">Tip: on iPhone tap Share → "Add to Home Screen". On Android use Chrome\'s "Add to Home screen" menu. Works offline once installed.</div>';
@@ -1231,8 +1257,9 @@
       var el = app.querySelector('#'+id);
       el.addEventListener('change', function(e){
         state[key] = e.target.value;
-        // Different team → previous player selections are invalid for the new roster
+        // Different team → previous player & captain selections are invalid for the new roster
         clearPlayersForSide(side);
+        state[side + 'Captain'] = '';
         state.submitted = false;
         save();
         populatePlayerDropdowns();
@@ -1241,8 +1268,54 @@
     bind('f-date','date');
     bindTeamSelect('f-home','homeTeam','home');
     bindTeamSelect('f-away','awayTeam','away');
-    bind('f-hcap','homeCaptain');
-    bind('f-acap','awayCaptain');
+
+    // Captain select handler (mirrors player slot UX)
+    var capSelects = app.querySelectorAll('#f-hcap, #f-acap');
+    for(var i = 0; i < capSelects.length; i++){
+      capSelects[i].addEventListener('change', function(e){
+        var sel = e.currentTarget;
+        var side = sel.getAttribute('data-cside');
+        var val = sel.value;
+        var resInput = document.getElementById((side === 'home' ? 'f-hcap-res' : 'f-acap-res'));
+        if(val === '__reserve__'){
+          if(resInput){
+            resInput.style.display = '';
+            resInput.value = '';
+            resInput.focus();
+          }
+          state[side + 'Captain'] = '';
+        } else {
+          if(resInput){
+            resInput.style.display = 'none';
+            resInput.value = '';
+          }
+          state[side + 'Captain'] = val;
+        }
+        state.submitted = false;
+        save();
+      });
+    }
+    var capReserves = app.querySelectorAll('input[data-cres]');
+    for(var i = 0; i < capReserves.length; i++){
+      capReserves[i].addEventListener('input', function(e){
+        var inp = e.currentTarget;
+        var side = inp.getAttribute('data-cside');
+        state[side + 'Captain'] = inp.value;
+        state.submitted = false;
+        save();
+      });
+      capReserves[i].addEventListener('blur', function(e){
+        var inp = e.currentTarget;
+        var v = inp.value.trim();
+        if(v){
+          v = titleCase(v);
+          inp.value = v;
+          var side = inp.getAttribute('data-cside');
+          state[side + 'Captain'] = v;
+          save();
+        }
+      });
+    }
 
     // Kick off team + roster fetch for the current league. Player dropdowns
     // start showing "— pick team first —" and fill in when teams arrive and
@@ -1271,6 +1344,8 @@
         if(oldLeague !== newLeague){
           state.homeTeam = '';
           state.awayTeam = '';
+          state.homeCaptain = '';
+          state.awayCaptain = '';
           // Wipe player slots — different league has a different roster
           for(var k=0;k<state.homePlayers.length;k++) state.homePlayers[k] = '';
           for(var k=0;k<state.awayPlayers.length;k++) state.awayPlayers[k] = '';
