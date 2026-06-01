@@ -411,14 +411,15 @@
   .standings-copy-btn {
     padding: var(--sp-1) var(--sp-3);
     font-size: var(--fs-xs);
-    background: var(--accent-bg);
-    border: 1px solid var(--accent-border);
-    color: var(--accent);
+    background: var(--success-bg);
+    border: 1px solid rgba(90, 200, 118, 0.5);
+    color: var(--success);
     border-radius: var(--radius);
     min-height: 36px;
     font-weight: 500;
   }
-  .standings-copy-btn:hover:not(:disabled) { background: var(--accent-bg); opacity: 0.85; }
+  .standings-copy-btn:hover:not(:disabled) { background: var(--success-bg); opacity: 0.85; }
+  .standings-copy-btn:disabled { opacity: 0.5; }
   .standings-close {
     width: var(--tap-target);
     height: var(--tap-target);
@@ -1003,7 +1004,7 @@
       '<div class="standings-header">' +
         '<div class="standings-title">Standings</div>' +
         '<div class="standings-actions">' +
-          '<button class="standings-copy-btn" id="standings-copy" title="Copy current view for Excel/Sheets">📋 Copy</button>' +
+          '<button class="standings-copy-btn" id="standings-copy" title="Download as Excel spreadsheet (.xlsx)">📊 Excel</button>' +
           '<button class="standings-close" id="standings-close" aria-label="Close">×</button>' +
         '</div>' +
       '</div>' +
@@ -1021,7 +1022,7 @@
     document.body.appendChild(overlay);
 
     overlay.querySelector('#standings-close').addEventListener('click', closeStandings);
-    overlay.querySelector('#standings-copy').addEventListener('click', copyStandings);
+    overlay.querySelector('#standings-copy').addEventListener('click', exportStandingsToExcel);
     var toggleBtns = overlay.querySelectorAll('.standings-toggle button');
     for(var i=0;i<toggleBtns.length;i++){
       toggleBtns[i].addEventListener('click', function(e){
@@ -1172,11 +1173,32 @@
     }
   }
 
-  // ============ COPY STANDINGS (NEW) ============
-  // Builds tab-separated text from whichever standings view (Teams or Players)
-  // is currently open. TSV pastes directly into Excel/Sheets cells without
-  // any "split text to columns" step.
-  function copyStandings(){
+  // ============ EXCEL EXPORT ============
+  // Builds a styled .xlsx file from the current standings view and triggers
+  // a download. Uses ExcelJS (lazy-loaded from CDN on first click only) so
+  // the initial app payload stays small and the library is cached for the
+  // rest of the session.
+  var excelJSPromise = null;
+  function loadExcelJS(){
+    if(excelJSPromise) return excelJSPromise;
+    excelJSPromise = new Promise(function(resolve, reject){
+      if(window.ExcelJS){ resolve(window.ExcelJS); return; }
+      var script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+      script.onload = function(){
+        if(window.ExcelJS) resolve(window.ExcelJS);
+        else { excelJSPromise = null; reject(new Error('ExcelJS failed to initialise')); }
+      };
+      script.onerror = function(){
+        excelJSPromise = null;
+        reject(new Error('Could not load Excel library — check internet connection'));
+      };
+      document.head.appendChild(script);
+    });
+    return excelJSPromise;
+  }
+
+  function exportStandingsToExcel(){
     if(!standingsView.league){
       setCopyStatus('Pick a league first', 'err');
       return;
@@ -1186,82 +1208,285 @@
       setCopyStatus('Standings not loaded yet — wait a moment', 'err');
       return;
     }
-
-    var lines = [];
-    // Title row gives context when pasted; users can delete it if not wanted.
-    lines.push(standingsView.league + ' — ' + (standingsView.tab === 'team' ? 'Team Standings' : 'Player Standings'));
-    lines.push('');
-
-    if(standingsView.tab === 'team'){
-      if(!cached.teams.length){
-        setCopyStatus('No team standings to copy', 'err');
-        return;
-      }
-      lines.push(['#','Team','Played','Won','Lost','Drawn','Frames Won','Win %','Points'].join('\t'));
-      for(var i=0;i<cached.teams.length;i++){
-        var t = cached.teams[i];
-        lines.push([
-          t.pos,
-          t.team,
-          t.played,
-          t.w,
-          t.l,
-          t.d,
-          t.framesWon,
-          (Math.round(t.pct*100)/100).toFixed(2),
-          t.points
-        ].join('\t'));
-      }
-    } else {
-      if(!cached.players.length){
-        setCopyStatus('No player standings to copy', 'err');
-        return;
-      }
-      lines.push(['#','Player','Team','Frames Won','Frames Played','Win %'].join('\t'));
-      for(var i=0;i<cached.players.length;i++){
-        var p = cached.players[i];
-        lines.push([
-          p.pos,
-          p.player,
-          p.team,
-          p.framesWon,
-          p.framesPlayed,
-          (Math.round(p.pct*100)/100).toFixed(2)
-        ].join('\t'));
-      }
+    var isTeam = standingsView.tab === 'team';
+    if(isTeam && !cached.teams.length){
+      setCopyStatus('No team standings to export', 'err');
+      return;
+    }
+    if(!isTeam && !cached.players.length){
+      setCopyStatus('No player standings to export', 'err');
+      return;
     }
 
-    var txt = lines.join('\n');
-    var rowCount = lines.length - 2; // minus title + blank line
+    var btn = document.getElementById('standings-copy');
+    if(btn) btn.disabled = true;
+    setCopyStatus('Preparing Excel file...', 'info');
 
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(txt).then(function(){
-        setCopyStatus('✓ Copied ' + rowCount + ' rows — paste into Excel or Sheets', 'ok');
-      }).catch(function(){
-        fallbackCopy(txt, rowCount);
+    loadExcelJS().then(function(ExcelJS){
+      var workbook = new ExcelJS.Workbook();
+      workbook.creator = 'GNPA Scorecard';
+      workbook.created = new Date();
+
+      if(isTeam) buildTeamSheet(workbook, cached.teams, standingsView.league);
+      else buildPlayerSheet(workbook, cached.players, standingsView.league);
+
+      return workbook.xlsx.writeBuffer();
+    }).then(function(buffer){
+      var blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       });
-    } else {
-      fallbackCopy(txt, rowCount);
-    }
+      var url = URL.createObjectURL(blob);
+      var dateStr = new Date().toISOString().slice(0,10);
+      var safeLeague = standingsView.league.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '');
+      var viewLabel = isTeam ? 'Teams' : 'Players';
+      var filename = 'GNPA_' + safeLeague + '_' + viewLabel + '_' + dateStr + '.xlsx';
+
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function(){
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      setCopyStatus('✓ Downloaded ' + filename, 'ok');
+      if(btn) btn.disabled = false;
+    }).catch(function(err){
+      var msg = (err && err.message) ? err.message : String(err);
+      setCopyStatus('Export failed: ' + msg, 'err');
+      if(btn) btn.disabled = false;
+    });
   }
 
-  function fallbackCopy(txt, rowCount){
-    var ta = document.createElement('textarea');
-    ta.value = txt;
-    ta.style.position = 'fixed';
-    ta.style.top = '-9999px';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    try {
-      var ok = document.execCommand('copy');
-      if(ok) setCopyStatus('✓ Copied ' + rowCount + ' rows — paste into Excel or Sheets', 'ok');
-      else setCopyStatus('Copy failed — try again', 'err');
-    } catch(e){
-      setCopyStatus('Copy failed: ' + e.message, 'err');
+  // Palette pulled loosely from the app's accent colours so the workbook
+  // looks like a continuation of the in-app standings table.
+  var XLS_COLORS = {
+    titleBg:    'FF1F6FC4',  // deep blue banner
+    titleText:  'FFFFFFFF',
+    headerBg:   'FF2E5F8F',  // darker blue header row
+    headerText: 'FFFFFFFF',
+    rowAlt:     'FFF4F7FB',  // very subtle stripe
+    rowBase:    'FFFFFFFF',
+    border:     'FFDDE3EA',
+    accent:     'FF1F6FC4',
+    muted:      'FF666666',
+    gold:       'FFFFE9A8',
+    silver:     'FFE6E6E6',
+    bronze:     'FFF7D9B5'
+  };
+
+  function applyHeaderStyle(cell){
+    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: XLS_COLORS.headerText } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XLS_COLORS.headerBg } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    cell.border = {
+      top:    { style: 'thin',   color: { argb: XLS_COLORS.headerBg } },
+      bottom: { style: 'medium', color: { argb: XLS_COLORS.titleBg } },
+      left:   { style: 'thin',   color: { argb: XLS_COLORS.border } },
+      right:  { style: 'thin',   color: { argb: XLS_COLORS.border } }
+    };
+  }
+
+  function applyTitleBanner(sheet, lastColLetter, leagueName, subtitle){
+    sheet.mergeCells('A1:' + lastColLetter + '1');
+    var titleCell = sheet.getCell('A1');
+    titleCell.value = leagueName + ' — ' + subtitle;
+    titleCell.font = { name: 'Calibri', size: 16, bold: true, color: { argb: XLS_COLORS.titleText } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XLS_COLORS.titleBg } };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    sheet.getRow(1).height = 30;
+
+    sheet.mergeCells('A2:' + lastColLetter + '2');
+    var subCell = sheet.getCell('A2');
+    subCell.value = 'Generated ' + new Date().toLocaleString();
+    subCell.font = { name: 'Calibri', size: 10, italic: true, color: { argb: XLS_COLORS.muted } };
+    subCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    sheet.getRow(2).height = 18;
+  }
+
+  function podiumBg(pos){
+    if(pos === 1) return XLS_COLORS.gold;
+    if(pos === 2) return XLS_COLORS.silver;
+    if(pos === 3) return XLS_COLORS.bronze;
+    return null;
+  }
+
+  function colLetter(n){
+    // 1 → A, 26 → Z, 27 → AA, etc. (workbook tables are small, but safe.)
+    var s = '';
+    while(n > 0){
+      var m = (n - 1) % 26;
+      s = String.fromCharCode(65 + m) + s;
+      n = Math.floor((n - 1) / 26);
     }
-    document.body.removeChild(ta);
+    return s;
+  }
+
+  function buildTeamSheet(workbook, teams, leagueName){
+    var sheet = workbook.addWorksheet('Team Standings', {
+      views: [{ state: 'frozen', ySplit: 3, xSplit: 2 }]
+    });
+
+    var headers   = ['#', 'Team', 'Played', 'Won', 'Lost', 'Drawn', 'Frames Won', 'Win %', 'Points'];
+    var widths    = [ 6,    30,     10,      8,     8,      9,        13,            11,       9    ];
+    var lastCol   = colLetter(headers.length);
+
+    for(var i = 0; i < widths.length; i++){
+      sheet.getColumn(i + 1).width = widths[i];
+    }
+
+    applyTitleBanner(sheet, lastCol, leagueName, 'Team Standings');
+
+    // Header row at row 3
+    var headerRow = sheet.getRow(3);
+    for(var i = 0; i < headers.length; i++){
+      headerRow.getCell(i + 1).value = headers[i];
+    }
+    headerRow.eachCell(applyHeaderStyle);
+    headerRow.height = 22;
+
+    // Data rows
+    for(var i = 0; i < teams.length; i++){
+      var t = teams[i];
+      var row = sheet.getRow(i + 4);
+      row.values = [
+        t.pos,
+        t.team,
+        t.played,
+        t.w,
+        t.l,
+        t.d,
+        t.framesWon,
+        // store as a real decimal so Excel's % format works (and sorts correctly)
+        t.pct / 100,
+        t.points
+      ];
+
+      var isAlt = i % 2 === 1;
+      var bg = isAlt ? XLS_COLORS.rowAlt : XLS_COLORS.rowBase;
+      var podium = podiumBg(t.pos);
+
+      for(var c = 1; c <= headers.length; c++){
+        var cell = row.getCell(c);
+        cell.font = { name: 'Calibri', size: 11 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+        cell.alignment = {
+          horizontal: c === 1 ? 'center' : (c === 2 ? 'left' : 'right'),
+          vertical: 'middle'
+        };
+        cell.border = {
+          top:    { style: 'thin', color: { argb: XLS_COLORS.border } },
+          bottom: { style: 'thin', color: { argb: XLS_COLORS.border } },
+          left:   { style: 'thin', color: { argb: XLS_COLORS.border } },
+          right:  { style: 'thin', color: { argb: XLS_COLORS.border } }
+        };
+      }
+
+      // Podium highlight on the position cell
+      if(podium){
+        var posCell = row.getCell(1);
+        posCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: podium } };
+        posCell.font = { name: 'Calibri', size: 11, bold: true };
+      }
+
+      // Team name bold
+      row.getCell(2).font = { name: 'Calibri', size: 11, bold: true };
+
+      // Win % formatted as percentage, accent color, bold
+      var pctCell = row.getCell(8);
+      pctCell.numFmt = '0.00%';
+      pctCell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: XLS_COLORS.accent } };
+
+      // Points bold
+      row.getCell(9).font = { name: 'Calibri', size: 11, bold: true };
+
+      row.height = 20;
+    }
+
+    // Enable filter on the header row
+    sheet.autoFilter = {
+      from: { row: 3, column: 1 },
+      to:   { row: 3, column: headers.length }
+    };
+  }
+
+  function buildPlayerSheet(workbook, players, leagueName){
+    var sheet = workbook.addWorksheet('Player Standings', {
+      views: [{ state: 'frozen', ySplit: 3, xSplit: 2 }]
+    });
+
+    var headers = ['#', 'Player', 'Team', 'Frames Won', 'Frames Played', 'Win %'];
+    var widths  = [ 6,    28,       24,      13,             15,             11   ];
+    var lastCol = colLetter(headers.length);
+
+    for(var i = 0; i < widths.length; i++){
+      sheet.getColumn(i + 1).width = widths[i];
+    }
+
+    applyTitleBanner(sheet, lastCol, leagueName, 'Player Standings');
+
+    var headerRow = sheet.getRow(3);
+    for(var i = 0; i < headers.length; i++){
+      headerRow.getCell(i + 1).value = headers[i];
+    }
+    headerRow.eachCell(applyHeaderStyle);
+    headerRow.height = 22;
+
+    for(var i = 0; i < players.length; i++){
+      var p = players[i];
+      var row = sheet.getRow(i + 4);
+      row.values = [
+        p.pos,
+        p.player,
+        p.team,
+        p.framesWon,
+        p.framesPlayed,
+        p.pct / 100
+      ];
+
+      var isAlt = i % 2 === 1;
+      var bg = isAlt ? XLS_COLORS.rowAlt : XLS_COLORS.rowBase;
+      var podium = podiumBg(p.pos);
+
+      for(var c = 1; c <= headers.length; c++){
+        var cell = row.getCell(c);
+        cell.font = { name: 'Calibri', size: 11 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+        cell.alignment = {
+          horizontal: c === 1 ? 'center' : (c <= 3 ? 'left' : 'right'),
+          vertical: 'middle'
+        };
+        cell.border = {
+          top:    { style: 'thin', color: { argb: XLS_COLORS.border } },
+          bottom: { style: 'thin', color: { argb: XLS_COLORS.border } },
+          left:   { style: 'thin', color: { argb: XLS_COLORS.border } },
+          right:  { style: 'thin', color: { argb: XLS_COLORS.border } }
+        };
+      }
+
+      if(podium){
+        var posCell = row.getCell(1);
+        posCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: podium } };
+        posCell.font = { name: 'Calibri', size: 11, bold: true };
+      }
+
+      // Player name bold, team a touch muted
+      row.getCell(2).font = { name: 'Calibri', size: 11, bold: true };
+      row.getCell(3).font = { name: 'Calibri', size: 11, color: { argb: XLS_COLORS.muted } };
+
+      var pctCell = row.getCell(6);
+      pctCell.numFmt = '0.00%';
+      pctCell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: XLS_COLORS.accent } };
+
+      row.height = 20;
+    }
+
+    sheet.autoFilter = {
+      from: { row: 3, column: 1 },
+      to:   { row: 3, column: headers.length }
+    };
   }
 
   function setCopyStatus(msg, cls){
