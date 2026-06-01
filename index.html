@@ -404,8 +404,21 @@
     border-bottom: 1px solid var(--border);
     background: var(--surface);
     flex-shrink: 0;
+    gap: var(--sp-2);
   }
   .standings-title { font-size: var(--fs-lg); font-weight: 600; color: var(--text); }
+  .standings-actions { display: flex; align-items: center; gap: var(--sp-2); }
+  .standings-copy-btn {
+    padding: var(--sp-1) var(--sp-3);
+    font-size: var(--fs-xs);
+    background: var(--accent-bg);
+    border: 1px solid var(--accent-border);
+    color: var(--accent);
+    border-radius: var(--radius);
+    min-height: 36px;
+    font-weight: 500;
+  }
+  .standings-copy-btn:hover:not(:disabled) { background: var(--accent-bg); opacity: 0.85; }
   .standings-close {
     width: var(--tap-target);
     height: var(--tap-target);
@@ -446,6 +459,15 @@
     color: var(--text);
     font-weight: 500;
   }
+  .standings-copy-status {
+    font-size: var(--fs-xs);
+    color: var(--text-secondary);
+    text-align: center;
+    padding: var(--sp-1) var(--sp-4) 0;
+    min-height: 18px;
+  }
+  .standings-copy-status.ok { color: var(--success); }
+  .standings-copy-status.err { color: var(--danger); }
   .standings-body {
     flex: 1;
     overflow-y: auto;
@@ -817,10 +839,8 @@
     return { missingHome: missingHome, missingAway: missingAway };
   }
 
-  // ============ ROSTER FETCHING (NEW) ============
-  // Replaces the previous knownNames-based team dropdown. One call per league
-  // returns teams + per-team rosters from the Historical Seed tab.
-  var cachedRosters = {}; // league -> { teams: [], rosters: { team: [players] } }
+  // ============ ROSTER FETCHING ============
+  var cachedRosters = {};
 
   function populateTeamDropdowns(){
     if(!state.league) return;
@@ -921,7 +941,6 @@
     }
   }
 
-  // Title Case: capitalize first letter of each word, except common connectors
   function titleCase(str){
     return str.replace(/\S+/g, function(word){
       var lower = word.toLowerCase();
@@ -983,7 +1002,10 @@
     overlay.innerHTML =
       '<div class="standings-header">' +
         '<div class="standings-title">Standings</div>' +
-        '<button class="standings-close" id="standings-close" aria-label="Close">×</button>' +
+        '<div class="standings-actions">' +
+          '<button class="standings-copy-btn" id="standings-copy" title="Copy current view for Excel/Sheets">📋 Copy</button>' +
+          '<button class="standings-close" id="standings-close" aria-label="Close">×</button>' +
+        '</div>' +
       '</div>' +
       '<div class="standings-controls">' +
         '<select id="standings-league"></select>' +
@@ -992,12 +1014,14 @@
           '<button data-tab="player" class="' + (standingsView.tab==='player'?'active':'') + '">Players</button>' +
         '</div>' +
       '</div>' +
+      '<div class="standings-copy-status" id="standings-copy-status"></div>' +
       '<div class="standings-body" id="standings-body">' +
         '<div class="standings-loading">Loading...</div>' +
       '</div>';
     document.body.appendChild(overlay);
 
     overlay.querySelector('#standings-close').addEventListener('click', closeStandings);
+    overlay.querySelector('#standings-copy').addEventListener('click', copyStandings);
     var toggleBtns = overlay.querySelectorAll('.standings-toggle button');
     for(var i=0;i<toggleBtns.length;i++){
       toggleBtns[i].addEventListener('click', function(e){
@@ -1148,6 +1172,112 @@
     }
   }
 
+  // ============ COPY STANDINGS (NEW) ============
+  // Builds tab-separated text from whichever standings view (Teams or Players)
+  // is currently open. TSV pastes directly into Excel/Sheets cells without
+  // any "split text to columns" step.
+  function copyStandings(){
+    if(!standingsView.league){
+      setCopyStatus('Pick a league first', 'err');
+      return;
+    }
+    var cached = standingsCache.byLeague[standingsView.league];
+    if(!cached){
+      setCopyStatus('Standings not loaded yet — wait a moment', 'err');
+      return;
+    }
+
+    var lines = [];
+    // Title row gives context when pasted; users can delete it if not wanted.
+    lines.push(standingsView.league + ' — ' + (standingsView.tab === 'team' ? 'Team Standings' : 'Player Standings'));
+    lines.push('');
+
+    if(standingsView.tab === 'team'){
+      if(!cached.teams.length){
+        setCopyStatus('No team standings to copy', 'err');
+        return;
+      }
+      lines.push(['#','Team','Played','Won','Lost','Drawn','Frames Won','Win %','Points'].join('\t'));
+      for(var i=0;i<cached.teams.length;i++){
+        var t = cached.teams[i];
+        lines.push([
+          t.pos,
+          t.team,
+          t.played,
+          t.w,
+          t.l,
+          t.d,
+          t.framesWon,
+          (Math.round(t.pct*100)/100).toFixed(2),
+          t.points
+        ].join('\t'));
+      }
+    } else {
+      if(!cached.players.length){
+        setCopyStatus('No player standings to copy', 'err');
+        return;
+      }
+      lines.push(['#','Player','Team','Frames Won','Frames Played','Win %'].join('\t'));
+      for(var i=0;i<cached.players.length;i++){
+        var p = cached.players[i];
+        lines.push([
+          p.pos,
+          p.player,
+          p.team,
+          p.framesWon,
+          p.framesPlayed,
+          (Math.round(p.pct*100)/100).toFixed(2)
+        ].join('\t'));
+      }
+    }
+
+    var txt = lines.join('\n');
+    var rowCount = lines.length - 2; // minus title + blank line
+
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){
+        setCopyStatus('✓ Copied ' + rowCount + ' rows — paste into Excel or Sheets', 'ok');
+      }).catch(function(){
+        fallbackCopy(txt, rowCount);
+      });
+    } else {
+      fallbackCopy(txt, rowCount);
+    }
+  }
+
+  function fallbackCopy(txt, rowCount){
+    var ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.position = 'fixed';
+    ta.style.top = '-9999px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try {
+      var ok = document.execCommand('copy');
+      if(ok) setCopyStatus('✓ Copied ' + rowCount + ' rows — paste into Excel or Sheets', 'ok');
+      else setCopyStatus('Copy failed — try again', 'err');
+    } catch(e){
+      setCopyStatus('Copy failed: ' + e.message, 'err');
+    }
+    document.body.removeChild(ta);
+  }
+
+  function setCopyStatus(msg, cls){
+    var el = document.getElementById('standings-copy-status');
+    if(!el) return;
+    el.className = 'standings-copy-status ' + (cls || '');
+    el.textContent = msg;
+    setTimeout(function(){
+      var still = document.getElementById('standings-copy-status');
+      if(still && still.textContent === msg){
+        still.textContent = '';
+        still.className = 'standings-copy-status';
+      }
+    }, 4000);
+  }
+
   function brandHeader(){
     return '<div class="brand-header">' +
       '<div></div>' +
@@ -1197,7 +1327,6 @@
     }
   }
 
-  // Build one player slot's HTML (select + hidden reserve input).
   function playerSlotHtml(side, idx, label){
     return '<div class="player-row">' +
       '<div class="player-row-inner">' +
@@ -1257,7 +1386,6 @@
       var el = app.querySelector('#'+id);
       el.addEventListener('change', function(e){
         state[key] = e.target.value;
-        // Different team → previous player & captain selections are invalid for the new roster
         clearPlayersForSide(side);
         state[side + 'Captain'] = '';
         state.submitted = false;
@@ -1269,7 +1397,6 @@
     bindTeamSelect('f-home','homeTeam','home');
     bindTeamSelect('f-away','awayTeam','away');
 
-    // Captain select handler (mirrors player slot UX)
     var capSelects = app.querySelectorAll('#f-hcap, #f-acap');
     for(var i = 0; i < capSelects.length; i++){
       capSelects[i].addEventListener('change', function(e){
@@ -1317,13 +1444,8 @@
       });
     }
 
-    // Kick off team + roster fetch for the current league. Player dropdowns
-    // start showing "— pick team first —" and fill in when teams arrive and
-    // a team is chosen.
     populateTeamDropdowns();
 
-    // League dropdown — when it changes, possibly resize the match and clear
-    // teams/players because rosters differ across leagues.
     app.querySelector('#f-league').addEventListener('change', function(e){
       var newLeague = e.target.value;
       var oldLeague = state.league;
@@ -1346,7 +1468,6 @@
           state.awayTeam = '';
           state.homeCaptain = '';
           state.awayCaptain = '';
-          // Wipe player slots — different league has a different roster
           for(var k=0;k<state.homePlayers.length;k++) state.homePlayers[k] = '';
           for(var k=0;k<state.awayPlayers.length;k++) state.awayPlayers[k] = '';
         }
@@ -1375,8 +1496,6 @@
       }
     });
 
-    // Player select handler — choosing a roster name updates state directly;
-    // choosing "Reserve (type name)" reveals the reserve text input.
     var pSlots = app.querySelectorAll('select[data-pslot]');
     for(var i = 0; i < pSlots.length; i++){
       pSlots[i].addEventListener('change', function(e){
@@ -1404,7 +1523,6 @@
       });
     }
 
-    // Reserve input handler — store the typed name as-is; title-case on blur.
     var pReserves = app.querySelectorAll('input[data-pres]');
     for(var i = 0; i < pReserves.length; i++){
       pReserves[i].addEventListener('input', function(e){
@@ -1956,9 +2074,6 @@
       return;
     }
 
-    // Players come from a server-side roster dropdown now, so the legacy
-    // fuzzy-match step is unnecessary — names are either roster-exact or
-    // explicit reserves typed by the user. Submit directly.
     doActualSubmit();
   }
 
