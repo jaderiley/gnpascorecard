@@ -353,6 +353,11 @@
   .summary-row .wl { color: var(--text-secondary); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 
   .submit-section { margin-top: var(--sp-4); padding-top: var(--sp-4); border-top: 1px solid var(--border); }
+  .code-gate { margin-bottom: var(--sp-3); }
+  .code-gate-hint { font-size: var(--fs-xs); color: var(--text-secondary); text-align: center; margin-bottom: var(--sp-2); line-height: 1.4; }
+  .code-gate-row { display: flex; gap: var(--sp-2); }
+  .code-gate-row .field { flex: 1; min-width: 0; }
+  .code-gate-row input { text-transform: uppercase; }
   .submit-status { font-size: var(--fs-xs); text-align: center; margin-top: var(--sp-2); min-height: 16px; }
   .submit-status.ok { color: var(--success); }
   .submit-status.err { color: var(--danger); }
@@ -620,6 +625,8 @@
       awayTeam: '',
       homeCaptain: '',
       awayCaptain: '',
+      homeCode: '',
+      awayCode: '',
       homePlayers: ['','','','','',''],
       awayPlayers: ['','','','','',''],
       results: [[null,null,null,null,null,null],[null,null,null,null,null,null],[null,null,null,null,null,null],[null,null,null,null,null,null],[null,null,null,null,null,null],[null,null,null,null,null,null]],
@@ -2234,8 +2241,20 @@
     var canSubmit = t.played === t.total;
     var submitLabel = state.submitted ? '✓ Submitted to league' : 'Submit match to league';
 
+    var codeGate =
+      '<div class="code-gate">' +
+        '<div class="code-gate-hint">Both captains confirm the result by entering their own code.</div>' +
+        '<div class="code-gate-row">' +
+          '<div class="field"><span class="field-label">' + escapeHtml(state.homeTeam || 'Home') + ' captain code</span>' +
+            '<input id="f-hcode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" placeholder="code" value="' + escapeHtml(state.homeCode || '') + '"></div>' +
+          '<div class="field"><span class="field-label">' + escapeHtml(state.awayTeam || 'Away') + ' captain code</span>' +
+            '<input id="f-acode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" placeholder="code" value="' + escapeHtml(state.awayCode || '') + '"></div>' +
+        '</div>' +
+      '</div>';
+
     var submitSection =
       '<div class="submit-section">' +
+      (state.submitted ? '' : codeGate) +
       '<button id="submit-btn" class="btn-success" style="width:100%;padding:12px;font-size:var(--fs-sm);" ' + (!canSubmit||state.submitted?'disabled':'') + '>' + submitLabel + '</button>' +
       '<div id="submit-status" class="submit-status info">' +
         (canSubmit ? (state.submitted ? 'Already submitted. Edit any score to re-enable.' : 'Sends match data to the league sheet') : (t.total-t.played) + ' ' + unit + (t.total-t.played===1?'':'s') + ' still to play') +
@@ -2283,6 +2302,15 @@
         submitToLeague();
       });
     }
+
+    var hcodeInput = app.querySelector('#f-hcode');
+    if(hcodeInput){
+      hcodeInput.addEventListener('input', function(){ state.homeCode = this.value; save(); });
+    }
+    var acodeInput = app.querySelector('#f-acode');
+    if(acodeInput){
+      acodeInput.addEventListener('input', function(){ state.awayCode = this.value; save(); });
+    }
   }
 
   function submitToLeague(){
@@ -2296,6 +2324,12 @@
       if(missing.missingAway.length) parts.push('Away ' + missing.missingAway.join(', '));
       status.className = 'submit-status err';
       status.textContent = 'Missing player names: ' + parts.join(' · ');
+      return;
+    }
+
+    if(!(state.homeCode && state.homeCode.trim()) || !(state.awayCode && state.awayCode.trim())){
+      status.className = 'submit-status err';
+      status.textContent = 'Both captains must enter their code before submitting.';
       return;
     }
 
@@ -2322,6 +2356,8 @@
       awayTeam: state.awayTeam,
       homeCaptain: state.homeCaptain,
       awayCaptain: state.awayCaptain,
+      homeCode: (state.homeCode || '').trim(),
+      awayCode: (state.awayCode || '').trim(),
       homeScore: t.h,
       awayScore: t.a,
       framesPlayed: t.played,
@@ -2417,6 +2453,8 @@
           status.className = 'submit-status ok';
           status.textContent = '✓ Submitted successfully';
           state.submitted = true;
+          state.homeCode = '';
+          state.awayCode = '';
           save();
           setTimeout(render, 1200);
         } else {
