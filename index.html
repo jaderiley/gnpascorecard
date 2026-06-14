@@ -2243,12 +2243,12 @@
 
     var codeGate =
       '<div class="code-gate">' +
-        '<div class="code-gate-hint">Both captains confirm the result by entering their own code.</div>' +
+        '<div class="code-gate-hint">Both teams confirm the result by entering their own team code.</div>' +
         '<div class="code-gate-row">' +
-          '<div class="field"><span class="field-label">' + escapeHtml(state.homeTeam || 'Home') + ' captain code</span>' +
-            '<input id="f-hcode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" placeholder="code" value="' + escapeHtml(state.homeCode || '') + '"></div>' +
-          '<div class="field"><span class="field-label">' + escapeHtml(state.awayTeam || 'Away') + ' captain code</span>' +
-            '<input id="f-acode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" placeholder="code" value="' + escapeHtml(state.awayCode || '') + '"></div>' +
+          '<div class="field"><span class="field-label">' + escapeHtml(state.homeTeam || 'Home') + ' team code</span>' +
+            '<input id="f-hcode" type="password" inputmode="numeric" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="12" placeholder="••••" value="' + escapeHtml(state.homeCode || '') + '"></div>' +
+          '<div class="field"><span class="field-label">' + escapeHtml(state.awayTeam || 'Away') + ' team code</span>' +
+            '<input id="f-acode" type="password" inputmode="numeric" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="12" placeholder="••••" value="' + escapeHtml(state.awayCode || '') + '"></div>' +
         '</div>' +
       '</div>';
 
@@ -2329,7 +2329,7 @@
 
     if(!(state.homeCode && state.homeCode.trim()) || !(state.awayCode && state.awayCode.trim())){
       status.className = 'submit-status err';
-      status.textContent = 'Both captains must enter their code before submitting.';
+      status.textContent = 'Both teams must enter their code before submitting.';
       return;
     }
 

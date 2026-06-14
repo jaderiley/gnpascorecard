@@ -10,7 +10,8 @@
  *     └── Config tab — table of [League Name | Spreadsheet ID]
  *
  *   Per-league Sheets (one per league, owned by the manager)
- *     └── Roster   (Team | Player | Captain? | Code — season-start roster + codes)
+ *     └── Team Codes (Team | Code — one season-long code per team; the gate)
+ *     └── Roster   (Team | Player | Captain? | Code — optional, feeds dropdowns)
  *     └── Matches  (raw submissions, with Verified checkbox column)
  *     └── Frames
  *     └── Players
@@ -23,8 +24,8 @@
  *   wrong cells in place, then ticks the box.
  *
  * SUBMISSION GATE
- *   Match submissions require BOTH opposing captains' codes (see roster.gs >
- *   validateCaptainCodes). One valid submission produces one pending row.
+ *   Match submissions require BOTH teams' codes (see roster.gs >
+ *   validateTeamCodes). One valid submission produces one pending row.
  *
  * SETUP
  *   1. Open the MASTER sheet → Extensions → Apps Script
@@ -34,8 +35,8 @@
  *   4. Reload the master sheet — you'll see a "GNPA League" menu appear.
  *   5. GNPA League → "Set up Config tab", then fill in Spreadsheet IDs.
  *   6. GNPA League → "Initialize all league sheets".
- *   7. GNPA League → "Set up Roster tabs (all leagues)", tick captains,
- *      then "Generate captain codes (all leagues)".
+ *   7. GNPA League → "Set up team codes (all leagues)". Open each
+ *      "Team Codes" tab to see/share each team's code.
  */
 
 // ============================================================
@@ -224,15 +225,12 @@ function handleSubmission(data) {
     };
   }
 
-  // === Dual-code captain gate (roster.gs). Both opposing captains must enter
-  //     their own code. Rejected submissions never reach the sheet.
-  var gate = validateCaptainCodes(leagueSS, data);
+  // === Dual team-code gate (roster.gs). Both teams must enter their own
+  //     team code. Rejected submissions never reach the sheet.
+  var gate = validateTeamCodes(leagueSS, data);
   if (!gate.ok) {
     return { ok: false, message: gate.message };
   }
-  // On success the roster is the source of truth for the captain names.
-  if (gate.homeCaptain) data.homeCaptain = gate.homeCaptain;
-  if (gate.awayCaptain) data.awayCaptain = gate.awayCaptain;
 
   var now = new Date();
   var timestamp = Utilities.formatDate(now, leagueSS.getSpreadsheetTimeZone(), 'yyyy-MM-dd HH:mm:ss');
@@ -695,10 +693,9 @@ function onOpen() {
     .addItem('Set up Config tab', 'setupConfigTab')
     .addItem('Initialize all league sheets', 'initializeAllLeagueSheets')
     .addSeparator()
-    .addItem('Set up Roster tabs (all leagues)', 'setupAllRosters')
-    .addItem('Generate captain codes (all leagues)', 'generateAllCodes')
-    .addItem('Generate captain codes — pick league', 'generateCodesPrompt')
-    .addItem('Reset one captain code', 'resetCaptainCodePrompt')
+    .addItem('Set up team codes (all leagues)', 'setupAllTeamCodes')
+    .addItem('Reset one team code', 'resetTeamCodePrompt')
+    .addItem('Set up player rosters (optional)', 'setupAllRosters')
     .addSeparator()
     .addItem('Rebuild standings — pick league', 'rebuildStandingsPrompt')
     .addItem('Rebuild standings — ALL leagues', 'rebuildAllStandings')
