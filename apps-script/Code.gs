@@ -111,6 +111,11 @@ function doPost(e) {
       return jsonResponse({ ok: true, message: 'Endpoint is alive.' });
     }
 
+    // Secret-gated Sheets bridge (bridge.gs) — isolated from match submission.
+    if (data.action === 'bridge') {
+      return jsonResponse(handleBridge(data));
+    }
+
     var result = handleSubmission(data);
     return jsonResponse(result);
   } catch (err) {
