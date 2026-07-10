@@ -2276,6 +2276,9 @@
       lines.push('GNPA scorecard — ' + state.date);
       if(state.league) lines.push('League: ' + state.league);
       lines.push((state.homeTeam||'Home') + ' ' + t.h + ' – ' + t.a + ' ' + (state.awayTeam||'Away'));
+      if(t.played < t.total){
+        lines.push('⚠ INCOMPLETE — only ' + t.played + ' of ' + t.total + ' frames captured');
+      }
       lines.push('');
       lines.push('Home players:');
       for(var i=0;i<homeRows.length;i++){ lines.push('  ' + homeRows[i].L + ' ' + homeRows[i].name + ': ' + homeRows[i].w + 'W ' + homeRows[i].l + 'L'); }
@@ -2463,7 +2466,7 @@
       });
     }).catch(function(err){
       status.className = 'submit-status err';
-      status.textContent = 'Failed: ' + err.message;
+      status.textContent = 'Failed: ' + err.message + ' — safe to tap Submit again (duplicates are ignored).';
       btn.disabled = false;
     });
   }

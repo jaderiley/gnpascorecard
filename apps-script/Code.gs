@@ -237,6 +237,27 @@ function handleSubmission(data) {
     return { ok: false, message: gate.message };
   }
 
+  // === Duplicate-submission guard (added 2026-07-10).
+  // Real-world failure seen in the Ladies league on 2026-07-09: the client's
+  // fetch can die AFTER the server has already written all the rows (flaky
+  // mobile signal, Apps Script redirect quirks). The app then shows "Failed",
+  // re-enables the Submit button, the captain taps again, and the entire
+  // match is double-written (4 of 8 matches that night landed twice).
+  // An identical resubmission (same date/teams/scores/framesPlayed) is always
+  // a retry — swallow it and report success so the client stops retrying.
+  // A resubmission with DIFFERENT scores is a deliberate correction and is
+  // still accepted; the manager verifies the right row.
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(20000); } catch (lockErr) { /* proceed — the sheet scan below still guards */ }
+  if (findDuplicateMatch_(leagueSS, data)) {
+    try { lock.releaseLock(); } catch (e) {}
+    return {
+      ok: true,
+      duplicate: true,
+      message: 'This match is already logged in ' + data.league + ' — duplicate submission ignored.'
+    };
+  }
+
   var now = new Date();
   var timestamp = Utilities.formatDate(now, leagueSS.getSpreadsheetTimeZone(), 'yyyy-MM-dd HH:mm:ss');
   var format = data.format || 'rotation';
@@ -291,10 +312,34 @@ function handleSubmission(data) {
     playersSheet.getRange(playersSheet.getLastRow() + 1, 1, playerRows.length, PLAYERS_HEADERS.length).setValues(playerRows);
   }
 
+  try { lock.releaseLock(); } catch (e) {}
   return {
     ok: true,
     message: 'Match logged in ' + data.league + ' (pending verification)'
   };
+}
+
+// Returns true if the Matches tab already holds a row for the same
+// date + teams + scores + framesPlayed. Serialized by the script lock in
+// handleSubmission, so two concurrent retries can't both pass the check.
+function findDuplicateMatch_(leagueSS, data) {
+  var sheet = leagueSS.getSheetByName(MATCHES_TAB);
+  if (!sheet || sheet.getLastRow() < 2) return false;
+  var tz = leagueSS.getSpreadsheetTimeZone();
+  var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, MATCHES_HEADERS.length).getValues();
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var rowDate = r[1] instanceof Date ? Utilities.formatDate(r[1], tz, 'yyyy-MM-dd') : String(r[1]).trim();
+    if (rowDate === String(data.date).trim() &&
+        String(r[4]).trim() === String(data.homeTeam).trim() &&
+        String(r[5]).trim() === String(data.awayTeam).trim() &&
+        Number(r[8]) === Number(data.homeScore) &&
+        Number(r[9]) === Number(data.awayScore) &&
+        Number(r[10]) === Number(data.framesPlayed)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // ============================================================
