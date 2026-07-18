@@ -78,6 +78,15 @@ var OWN_FRAMES_PCT_LEAGUE = 'Ladies';
 // league's maximum framesPlayed to be ranked. Anyone below appears under a
 // "LESS THAN ...% LEAGUE GAMES PLAYED" heading, unranked.
 var PLAYER_QUALIFY_PCT = 0.60;
+// Per-league overrides of the qualify threshold. Ladies requires 85% of the
+// league's max games played to be ranked (Jade, 2026-07-18). Keep in sync with
+// PLAYER_QUALIFY_PCT in gnpa_cli.py.
+var PLAYER_QUALIFY_PCT_OVERRIDE = { 'Ladies': 0.85 };
+function qualifyPctForLeague_(leagueName) {
+  var key = String(leagueName).trim();
+  return PLAYER_QUALIFY_PCT_OVERRIDE.hasOwnProperty(key)
+    ? PLAYER_QUALIFY_PCT_OVERRIDE[key] : PLAYER_QUALIFY_PCT;
+}
 // ============================================================
 //  SCHEMAS
 // ============================================================
@@ -644,7 +653,8 @@ function rebuildPlayerStandings(ss, leagueName) {
   Object.keys(players).forEach(function (k) {
     if (players[k].framesPlayed > maxFP) maxFP = players[k].framesPlayed;
   });
-  var threshold = maxFP * PLAYER_QUALIFY_PCT;
+  var qualifyPct = qualifyPctForLeague_(leagueName);
+  var threshold = maxFP * qualifyPct;
 
   // The single per-league branch: Ladies ranks on own frames played; every
   // other league ranks on the team's total frames for the season.
@@ -672,7 +682,7 @@ function rebuildPlayerStandings(ss, leagueName) {
   var separatorSheetRow = -1; // sheet-row index of the heading row, for formatting later
   if (unqualified.length) {
     separatorSheetRow = rows.length + 2; // +1 for header row, +1 because rows.length is current count before push
-    rows.push(['', '', 'LESS THAN ' + PLAYER_QUALIFY_PCT * 100 +'% LEAGUE GAMES PLAYED', '', '', '']);
+    rows.push(['', '', 'LESS THAN ' + qualifyPct * 100 +'% LEAGUE GAMES PLAYED', '', '', '']);
     unqualified.forEach(function (r) { rows.push([''].concat(r)); });
   }
 
