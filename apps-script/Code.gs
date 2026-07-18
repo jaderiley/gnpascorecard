@@ -749,6 +749,8 @@ function onOpen() {
     .addSeparator()
     .addItem('Rebuild standings — pick league', 'rebuildStandingsPrompt')
     .addItem('Rebuild standings — ALL leagues', 'rebuildAllStandings')
+    .addSeparator()
+    .addItem('Set up mobile refresh checkboxes', 'setupRebuildCheckboxes')
     .addToUi();
 }
 

@@ -11,6 +11,11 @@ editor (Master sheet → Extensions → Apps Script).
   an optional player Roster tab. *(new)*
 - **seed.gs** — historical-season seed data + installers. *(unchanged — not
   duplicated here; the copy in the script editor is current.)*
+- **refresh.gs** — mobile "Refresh standings" checkbox: a `Refresh` first tab
+  per league sheet + installable onEdit triggers, because the Sheets mobile
+  app never shows custom menus. One-time setup: run
+  `setupRebuildCheckboxes()` (also on the GNPA League menu). Triggers run the
+  latest saved code, so this needs **no redeploy** — just save + run setup.
 
 ## What changed
 - **Dual team-code submission gate** — `handleSubmission` calls
