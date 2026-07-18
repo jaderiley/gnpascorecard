@@ -254,8 +254,12 @@ function handleSubmission(data) {
   // match is double-written (4 of 8 matches that night landed twice).
   // An identical resubmission (same date/teams/scores/framesPlayed) is always
   // a retry — swallow it and report success so the client stops retrying.
-  // A resubmission with DIFFERENT scores is a deliberate correction and is
-  // still accepted; the manager verifies the right row.
+  // Extended 2026-07-18: a retap where the captain also CHANGED THE DATE (the
+  // 2026-07-16 OBS Mafia vs Bitch Squad 7/14-vs-7/15 double-write) is caught
+  // too, because such a resubmission lands within minutes of the original (see
+  // RETAP_WINDOW_MS in findDuplicateMatch_). A resubmission with DIFFERENT
+  // scores, or the same fixture genuinely replayed weeks later, still lands;
+  // the manager verifies the right row.
   var lock = LockService.getScriptLock();
   try { lock.waitLock(20000); } catch (lockErr) { /* proceed — the sheet scan below still guards */ }
   if (findDuplicateMatch_(leagueSS, data)) {
@@ -328,27 +332,57 @@ function handleSubmission(data) {
   };
 }
 
+// A retap resubmission lands within seconds/minutes of the original write, so
+// if the same fixture+scores was submitted this recently we treat it as a
+// duplicate even when the captain changed the match Date. A genuine rematch of
+// the same two teams is weeks apart — well outside this window — so it still
+// goes through.
+var RETAP_WINDOW_MS = 15 * 60 * 1000;
+
 // Returns true if the Matches tab already holds a row for the same
-// date + teams + scores + framesPlayed. Serialized by the script lock in
-// handleSubmission, so two concurrent retries can't both pass the check.
+// teams + scores + framesPlayed AND either (a) the same match date, or (b) it
+// was submitted within RETAP_WINDOW_MS of now (a same-session retap that also
+// changed the date). Serialized by the script lock in handleSubmission, so two
+// concurrent retries can't both pass the check.
 function findDuplicateMatch_(leagueSS, data) {
   var sheet = leagueSS.getSheetByName(MATCHES_TAB);
   if (!sheet || sheet.getLastRow() < 2) return false;
   var tz = leagueSS.getSpreadsheetTimeZone();
+  var nowMs = Date.now();
   var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, MATCHES_HEADERS.length).getValues();
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
-    var rowDate = r[1] instanceof Date ? Utilities.formatDate(r[1], tz, 'yyyy-MM-dd') : String(r[1]).trim();
-    if (rowDate === String(data.date).trim() &&
+    var sameFixture =
         String(r[4]).trim() === String(data.homeTeam).trim() &&
         String(r[5]).trim() === String(data.awayTeam).trim() &&
         Number(r[8]) === Number(data.homeScore) &&
         Number(r[9]) === Number(data.awayScore) &&
-        Number(r[10]) === Number(data.framesPlayed)) {
-      return true;
+        Number(r[10]) === Number(data.framesPlayed);
+    if (!sameFixture) continue;
+
+    // (a) same match date → definite resubmission.
+    var rowDate = r[1] instanceof Date ? Utilities.formatDate(r[1], tz, 'yyyy-MM-dd') : String(r[1]).trim();
+    if (rowDate === String(data.date).trim()) return true;
+
+    // (b) different date but submitted moments ago → retap that changed the date.
+    var submittedMs = parseSubmittedMs_(r[0]);
+    if (submittedMs != null) {
+      var age = nowMs - submittedMs;
+      if (age >= 0 && age <= RETAP_WINDOW_MS) return true;
     }
   }
   return false;
+}
+
+// Parse a Matches "Submitted" cell (a Date object, or a 'yyyy-MM-dd HH:mm:ss'
+// string in the sheet's timezone) to epoch ms. Returns null if unparseable —
+// callers then fall back to the same-date check only (never a false positive).
+function parseSubmittedMs_(v) {
+  if (v instanceof Date) return v.getTime();
+  var s = String(v == null ? '' : v).trim();
+  if (!s) return null;
+  var t = new Date(s.replace(' ', 'T')).getTime();
+  return isNaN(t) ? null : t;
 }
 
 // ============================================================
