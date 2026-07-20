@@ -513,6 +513,31 @@
   }
   .standings-table tr:nth-child(odd) td { background: rgba(255,255,255,0.02); }
   .standings-table td.pct { font-weight: 600; color: var(--accent); }
+  /* Boundary row between ranked players and those under the qualifying threshold */
+  .standings-table tr.standings-cutoff td {
+    background: var(--surface-2) !important;
+    border-top: 2px solid var(--accent-border);
+    border-bottom: 1px solid var(--border-strong);
+    padding: var(--sp-2) var(--sp-3);
+    text-align: center;
+    white-space: normal;
+  }
+  .standings-cutoff__label {
+    display: inline-block;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+  }
+  .standings-cutoff__label::before,
+  .standings-cutoff__label::after { content: "———"; margin: 0 var(--sp-2); color: var(--border-strong); letter-spacing: 0; }
+  .standings-cutoff__note {
+    display: block;
+    margin-top: 2px;
+    font-size: var(--fs-xs);
+    color: var(--text-secondary);
+  }
   .standings-empty {
     padding: var(--sp-6) var(--sp-4);
     text-align: center;
@@ -1115,6 +1140,21 @@
       });
   }
 
+  // The standings feed injects a marker row that separates ranked players from
+  // those who played under the qualifying threshold. It comes back as a bare
+  // player entry (no team, pos 0, 0 frames) whose name is the heading text.
+  function isCutoffRow(p){
+    return !p.team && (Number(p.pos) || 0) === 0 &&
+           /LEAGUE GAMES PLAYED/i.test(p.player || '');
+  }
+  // Rewrite the cryptic "LESS THAN 85% LEAGUE GAMES PLAYED" as a plain-English
+  // boundary note, keeping whatever percent the league actually uses.
+  function cutoffNote(p){
+    var m = (p.player || '').match(/(\d+(?:\.\d+)?)\s*%/);
+    var pct = m ? m[1] : '85';
+    return 'Players below played under ' + pct + '% of league games — unranked';
+  }
+
   function renderStandingsTable(body, data){
     if(standingsView.tab === 'team'){
       if(!data.teams.length){
@@ -1155,6 +1195,12 @@
         return;
       }
       var rows = data.players.map(function(p){
+        if(isCutoffRow(p)){
+          return '<tr class="standings-cutoff"><td colspan="5">' +
+            '<span class="standings-cutoff__label">Cut-off line</span>' +
+            '<span class="standings-cutoff__note">' + escapeHtml(cutoffNote(p)) + '</span>' +
+          '</td></tr>';
+        }
         return '<tr>' +
           '<td class="pos num">' + p.pos + '</td>' +
           '<td>' +
@@ -1444,6 +1490,23 @@
     for(var i = 0; i < players.length; i++){
       var p = players[i];
       var row = sheet.getRow(i + 4);
+
+      // The cut-off marker becomes a merged banner, not a bogus 0/0/0% data row.
+      if(isCutoffRow(p)){
+        sheet.mergeCells('A' + (i + 4) + ':' + lastCol + (i + 4));
+        var bannerCell = row.getCell(1);
+        bannerCell.value = cutoffNote(p);
+        bannerCell.font = { name: 'Calibri', size: 10, bold: true, italic: true, color: { argb: XLS_COLORS.muted } };
+        bannerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XLS_COLORS.rowAlt } };
+        bannerCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        bannerCell.border = {
+          top:    { style: 'medium', color: { argb: XLS_COLORS.accent } },
+          bottom: { style: 'thin',   color: { argb: XLS_COLORS.border } }
+        };
+        row.height = 20;
+        continue;
+      }
+
       row.values = [
         p.pos,
         p.player,
