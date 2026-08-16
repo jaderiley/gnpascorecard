@@ -16,8 +16,10 @@
  *      approval is untouched.
  *
  *   3. An optional per-league "Roster" tab (Team | Player | Captain? | Code)
- *      that feeds the app's player/team dropdowns. This is just a convenience
- *      for data entry and is independent of the team-code gate.
+ *      that feeds the app's player/team dropdowns. Since 2026-08-16 its Code
+ *      column is ALSO a code source: a non-empty code on any of a team's
+ *      roster rows overrides that team's Team Codes entry, so managers can
+ *      manage codes right on the Roster without touching the other tab.
  *
  * APPLIES TO EVERY LEAGUE. Nothing here is league-specific.
  */
@@ -44,17 +46,29 @@ var ROSTER_HEADERS = ['Team', 'Player', 'Captain?', 'Code'];
 //  TEAM CODE READING + VALIDATION
 // ============================================================
 
-// Reads the Team Codes tab into { teamLowerCase: normalisedCode }.
+// Reads the league's team codes into { teamLowerCase: normalisedCode }.
+// Two sources, merged: the Team Codes tab first, then the Roster tab's Code
+// column on top (first non-empty code per team wins within the Roster). So a
+// manager can set/change a code on either tab, and the Roster is the one that
+// counts when the two disagree.
 function readTeamCodes(ss) {
-  var sheet = ss.getSheetByName(TEAM_CODES_TAB);
-  if (!sheet || sheet.getLastRow() < 2) return {};
-  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, TEAM_CODES_HEADERS.length).getValues();
   var map = {};
-  for (var i = 0; i < data.length; i++) {
-    var team = String(data[i][0] || '').trim();
-    var code = normCode(data[i][1]);
-    if (team && code) map[team.toLowerCase()] = code;
+  var sheet = ss.getSheetByName(TEAM_CODES_TAB);
+  if (sheet && sheet.getLastRow() >= 2) {
+    var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, TEAM_CODES_HEADERS.length).getValues();
+    for (var i = 0; i < data.length; i++) {
+      var team = String(data[i][0] || '').trim();
+      var code = normCode(data[i][1]);
+      if (team && code) map[team.toLowerCase()] = code;
+    }
   }
+  var rosterCodes = {};
+  readRosterTab(ss).forEach(function (r) {
+    if (!r.team || !r.code) return;
+    var key = r.team.toLowerCase();
+    if (!rosterCodes[key]) rosterCodes[key] = r.code; // first non-empty row wins
+  });
+  Object.keys(rosterCodes).forEach(function (k) { map[k] = rosterCodes[k]; });
   return map;
 }
 
@@ -203,7 +217,7 @@ function setupTeamCodesForSheet(ss) {
 }
 
 // ============================================================
-//  OPTIONAL PLAYER ROSTER (dropdowns only — not the gate)
+//  OPTIONAL PLAYER ROSTER (dropdowns + per-team code override)
 // ============================================================
 
 // Reads the Roster tab into [{ team, player, captain, code }]. [] if absent.
@@ -226,47 +240,65 @@ function readRosterTab(ss) {
   return out;
 }
 
-// Builds the roster payload the app uses for its dropdowns. Prefers the
-// Roster tab; falls back to the legacy seed/Players derivation.
+// Builds the roster payload the app uses for its dropdowns.
+//
+// LIVE UNION of three sources, so the dropdown is never a stale snapshot:
+//   1. the authored Roster tab   — the place to add a not-yet-played player
+//   2. the historical seed
+//   3. everyone who has actually played (Players tab) — auto-captures reserves
+// De-duplicated per team by a normalised (lower-case, single-spaced) name so
+// "van Staden" and "Van Staden" collapse to one entry. The first spelling
+// seen wins as the display name.
 //   returns { teams: [..], rosters: { team: [players] }, captains: { team: [players] } }
 function getRosterForLeague(ss) {
-  var roster = readRosterTab(ss);
+  var teamSet = {};
+  var rosters = {};   // team -> { normalisedName: displayName }
+  var captains = {};
 
-  if (roster.length) {
-    var rosters = {};
-    var captains = {};
-    var teamSet = {};
-    roster.forEach(function (r) {
-      if (!r.team) return;
-      teamSet[r.team] = true;
-      if (r.player) {
-        if (!rosters[r.team]) rosters[r.team] = [];
-        rosters[r.team].push(r.player);
-        if (r.captain) {
-          if (!captains[r.team]) captains[r.team] = [];
-          captains[r.team].push(r.player);
-        }
-      }
-    });
-    Object.keys(rosters).forEach(function (t) { rosters[t].sort(); });
-    Object.keys(captains).forEach(function (t) { captains[t].sort(); });
-    return { teams: Object.keys(teamSet).sort(), rosters: rosters, captains: captains };
+  var add = function (team, player, isCaptain) {
+    team = String(team || '').trim();
+    if (!team) return;
+    teamSet[team] = true;
+    player = String(player || '').trim();
+    if (!player) return;
+    var key = player.toLowerCase().replace(/\s+/g, ' ');
+    if (!rosters[team]) rosters[team] = {};
+    if (!rosters[team][key]) rosters[team][key] = player; // first spelling wins
+    if (isCaptain) {
+      if (!captains[team]) captains[team] = {};
+      captains[team][key] = rosters[team][key];
+    }
+  };
+
+  // 1. Authored Roster tab (Team | Player | Captain? | Code).
+  readRosterTab(ss).forEach(function (r) { add(r.team, r.player, r.captain); });
+
+  // 2. Historical seed.
+  var playerSeed = readPlayerSeed(ss);
+  Object.keys(playerSeed).forEach(function (k) {
+    add(playerSeed[k].team, playerSeed[k].name, false);
+  });
+
+  // 3. Everyone who has actually played (live submissions).
+  var playersSheet = ss.getSheetByName(PLAYERS_TAB);
+  if (playersSheet && playersSheet.getLastRow() >= 2) {
+    playersSheet.getRange(2, 1, playersSheet.getLastRow() - 1, PLAYERS_HEADERS.length)
+      .getValues().forEach(function (row) { add(row[4], row[6], false); });
   }
 
-  // ---- Legacy fallback: derive from seed + submitted Players data ----
-  var playerSeed = readPlayerSeed(ss);
-  var teamSeed = readTeamSeed(ss);
-  var rostersL = {};
-  Object.keys(playerSeed).forEach(function (k) {
-    var s = playerSeed[k];
-    if (!rostersL[s.team]) rostersL[s.team] = [];
-    rostersL[s.team].push(s.name);
-  });
-  Object.keys(rostersL).forEach(function (t) { rostersL[t].sort(); });
-  var teamSetL = {};
-  Object.keys(teamSeed).forEach(function (t) { teamSetL[t] = true; });
-  Object.keys(rostersL).forEach(function (t) { teamSetL[t] = true; });
-  return { teams: Object.keys(teamSetL).sort(), rosters: rostersL, captains: {} };
+  var flatten = function (map) {
+    var out = {};
+    Object.keys(map).forEach(function (t) {
+      out[t] = Object.keys(map[t]).map(function (k) { return map[t][k]; }).sort();
+    });
+    return out;
+  };
+
+  return {
+    teams: Object.keys(teamSet).sort(),
+    rosters: flatten(rosters),
+    captains: flatten(captains)
+  };
 }
 
 // Creates/tops up the player Roster tab from existing data (optional helper).
