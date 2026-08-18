@@ -796,6 +796,8 @@ function onOpen() {
     .addSeparator()
     .addItem('Set up mobile refresh checkboxes', 'setupRebuildCheckboxes')
     .addItem('Set up manager tools tabs', 'setupManagerTabs')
+    .addSeparator()
+    .addItem('Compact blank rows (all leagues)', 'compactAllLeagues')
     .addToUi();
 }
 
