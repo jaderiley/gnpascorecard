@@ -35,6 +35,19 @@
  *   - Only Ladies ships a Roster tab; the others are created on first Add
  *     (getRosterForLeague in roster.gs unions the Roster tab when present).
  *   - Team list comes from the Team Codes tab (present in every league).
+ *
+ * TEAM DROPDOWN IS A LIVE RANGE (changed 2026-08-19 — this was a real bug)
+ *   The Team dropdowns used to be built from a SNAPSHOT of the Team Codes tab
+ *   (requireValueInList with the names copied in at setup time). If that read
+ *   came back empty for any reason, Apps Script happily built a dropdown with
+ *   ZERO items and setup still reported success — the manager then sees an
+ *   empty picker and "Invalid: Input must be an item on the specified list"
+ *   when they type. That is exactly what shipped: every league sheet ended up
+ *   with an empty list rule on B5/B12 (found on Vets Tier 1, 2026-08-19).
+ *   They now point at Team Codes!A2:A as a RANGE, so the picker always shows
+ *   whatever that tab currently holds — new teams appear without re-running
+ *   setup, and a league whose Team Codes tab is still empty is REPORTED as
+ *   such by setupManagerTabs() instead of failing silently.
  */
 
 var MANAGER_TAB = 'Manager';
@@ -65,9 +78,13 @@ function setupManagerTabs() {
   leagues.forEach(function (entry) {
     try {
       var ss = SpreadsheetApp.openById(entry.sheetId);
-      ensureManagerTab_(ss);
+      var nTeams = ensureManagerTab_(ss);
       ensureLeagueEditTrigger_(entry.sheetId); // shares the Refresh handler
-      report.push('✓ ' + entry.league);
+      // Say how many teams the picker will show. A zero here is the failure
+      // mode that shipped an empty dropdown to every league — never hide it.
+      report.push((nTeams ? '✓ ' : '⚠ ') + entry.league + ' — ' +
+        (nTeams ? nTeams + ' team(s) in the picker'
+                : 'Team Codes tab is EMPTY — dropdown will show nothing until teams are added'));
     } catch (e) {
       report.push('✗ ' + entry.league + ' — ' + e.message);
     }
@@ -104,10 +121,15 @@ function ensureManagerTab_(ss) {
   sheet.setColumnWidth(2, 320);
   sheet.setHiddenGridlines(true);
 
-  var teams = managerTeamList_(ss);
+  // The picker points at the Team Codes tab itself, not a copy of its values:
+  // teams added/renamed there show up immediately, and there is no way to end
+  // up with a silently empty list. Invalid entries are REJECTED — this is a
+  // pick-from-list field, and a half-typed team name ("Old Boys Unt") used to
+  // sail through and then match nothing.
+  var teamRange = managerTeamRange_(ss);
   var teamRule = SpreadsheetApp.newDataValidation()
-    .requireValueInList(teams, true).setAllowInvalid(true)
-    .setHelpText('Pick a team').build();
+    .requireValueInRange(teamRange, true).setAllowInvalid(false)
+    .setHelpText('Pick a team from the list').build();
 
   // ---- Title ----
   band_(sheet, 'A1:B1', '⚙️  MANAGER TOOLS', '#1f6fc4', '#ffffff', 12);
@@ -139,6 +161,8 @@ function ensureManagerTab_(ss) {
   status_(sheet, MGR_REN_STATUS, 'Waiting');
 
   note_(sheet, 'A18:B18', 'Tip: pick the Team first — the "Current name" list fills with that team’s players (including any misspelt ones sitting in the results).');
+
+  return managerTeamList_(ss).length; // reported by setupManagerTabs()
 }
 
 // Small layout helpers (keep the tab looking intentional, not like a raw grid)
@@ -166,11 +190,24 @@ function status_(sheet, a1, text) {
   sheet.getRange(a1).setValue(text).setFontStyle('italic').setFontColor('#888888');
 }
 
+// The RANGE the team dropdowns read (Team Codes, the Team column, row 2 down).
+// A range keeps the picker live; blank cells in it are ignored by Sheets.
+function managerTeamRange_(ss) {
+  var sh = ss.getSheetByName(TEAM_CODES_TAB);
+  if (!sh) {
+    throw new Error('no "' + TEAM_CODES_TAB + '" tab — cannot build the team dropdown');
+  }
+  var col = colByHeader_(sh, 'Team') || 1;
+  var rows = Math.max(sh.getMaxRows() - 1, 1);
+  return sh.getRange(2, col, rows, 1);
+}
+
 // Teams for the dropdowns — from the Team Codes tab (every league has it).
 function managerTeamList_(ss) {
   var sh = ss.getSheetByName(TEAM_CODES_TAB);
   if (!sh || sh.getLastRow() < 2) return [];
-  var vals = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
+  var teamCol = colByHeader_(sh, 'Team') || 1;
+  var vals = sh.getRange(2, teamCol, sh.getLastRow() - 1, 1).getValues();
   var seen = {}, out = [];
   vals.forEach(function (r) {
     var t = String(r[0] || '').trim();
@@ -178,6 +215,15 @@ function managerTeamList_(ss) {
   });
   out.sort(function (a, b) { return a.toLowerCase() < b.toLowerCase() ? -1 : 1; });
   return out;
+}
+
+// Is this actually a team on this sheet? The dropdown now rejects free text,
+// but a value typed before this fix (or pasted in) can still be sitting in the
+// cell — and acting on it renames nothing while reporting success.
+function managerIsKnownTeam_(ss, team) {
+  var t = String(team || '').trim().toLowerCase();
+  if (!t) return false;
+  return managerTeamList_(ss).some(function (n) { return n.toLowerCase() === t; });
 }
 
 // ============================================================
@@ -199,7 +245,9 @@ function onManagerEdit_(e, sheet) {
 // When a team is chosen for renaming, fill "Current name" with that team's
 // players — union of the Roster tab and everyone who has actually played
 // (so a misspelling that only exists in the results still shows up).
-function refreshRenameNameList_(sheet, ss) {
+// `quiet` suppresses the status line — set when called right after a rename,
+// where the status cell already holds the result the manager needs to read.
+function refreshRenameNameList_(sheet, ss, quiet) {
   var team = String(sheet.getRange(MGR_REN_TEAM).getValue() || '').trim();
   var oldCell = sheet.getRange(MGR_REN_OLD);
   oldCell.clearContent();
@@ -207,10 +255,14 @@ function refreshRenameNameList_(sheet, ss) {
   var names = playerNamesForTeam_(ss, team);
   if (names.length) {
     oldCell.setDataValidation(SpreadsheetApp.newDataValidation()
-      .requireValueInList(names, true).setAllowInvalid(true)
+      .requireValueInList(names, true).setAllowInvalid(false)
       .setHelpText('Pick the name to fix').build());
+    if (!quiet) sheet.getRange(MGR_REN_STATUS)
+      .setValue(names.length + ' player(s) on ' + team + ' — pick one');
   } else {
     oldCell.clearDataValidations();
+    if (!quiet) sheet.getRange(MGR_REN_STATUS)
+      .setValue('✗ No players found for ' + team + ' yet');
   }
 }
 
@@ -249,6 +301,10 @@ function managerDoAdd_(e, sheet) {
   e.range.setValue(false); // untick first (a script edit can't re-fire this)
 
   if (!team) { status.setValue('✗ Pick a team first'); return; }
+  if (!managerIsKnownTeam_(ss, team)) {
+    status.setValue('✗ “' + team + '” is not a team on this sheet — pick one from the dropdown');
+    return;
+  }
   if (!name) { status.setValue('✗ Type the player’s name first'); return; }
 
   var already = playerNamesForTeam_(ss, team).map(function (n) { return n.toLowerCase(); });
@@ -284,6 +340,10 @@ function managerDoRename_(e, sheet) {
   e.range.setValue(false);
 
   if (!team) { status.setValue('✗ Pick a team first'); return; }
+  if (!managerIsKnownTeam_(ss, team)) {
+    status.setValue('✗ “' + team + '” is not a team on this sheet — pick one from the dropdown');
+    return;
+  }
   if (!oldName) { status.setValue('✗ Pick the current name'); return; }
   if (!newName) { status.setValue('✗ Type the correct name'); return; }
   if (oldName === newName) { status.setValue('✗ Old and new name are the same'); return; }
@@ -302,6 +362,14 @@ function managerDoRename_(e, sheet) {
     n += renameInTab_(ss, ROSTER_TAB,  [['Team', 'Player']], team, oldName, newName);
     n += renameInTab_(ss, PLAYERS_TAB, [['Team', 'Player']], team, oldName, newName);
     n += renameInTab_(ss, FRAMES_TAB,  [['Home Team', 'Home Player'], ['Away Team', 'Away Player']], team, oldName, newName);
+
+    // Nothing matched — say so instead of reporting a ✓ for a no-op, and skip
+    // the ~20s rebuild. This is what "updated 0 row(s), standings rebuilt"
+    // looked like on Vets Tier 1 when the team cell held a half-typed name.
+    if (!n) {
+      status.setValue('✗ No “' + oldName + '” found in ' + team + ' — nothing changed');
+      return;
+    }
     dedupeRosterTeamName_(ss, team, newName);
 
     rebuildTeamStandings(ss, league);
@@ -313,7 +381,7 @@ function managerDoRename_(e, sheet) {
       ' row(s), standings rebuilt · ' + Utilities.formatDate(new Date(), tz, 'EEE d MMM HH:mm'));
     sheet.getRange(MGR_REN_OLD).clearContent();
     sheet.getRange(MGR_REN_NEW).clearContent();
-    refreshRenameNameList_(sheet, ss);
+    refreshRenameNameList_(sheet, ss, true); // keep the ✓ message on screen
   } catch (err) {
     status.setValue('✗ Failed: ' + err.message);
   } finally {
