@@ -137,7 +137,10 @@ function onLeagueRefreshEdit(e) {
       // the event's own spreadsheet (no getActiveSpreadsheet in trigger context).
       rebuildTeamStandings(ss, league);
       rebuildPlayerStandings(ss, league);
-      try { CacheService.getScriptCache().remove('standings:' + league); } catch (ce) {}
+      // Also clears the roster cache — this checkbox is the manager's manual
+      // "my sheet edit isn't showing in the app" escape hatch, and hand edits
+      // to Roster / Team Codes cannot invalidate anything on their own.
+      try { invalidateLeagueCaches_(league); } catch (ce) {}
       var tz = ss.getSpreadsheetTimeZone();
       status.setValue('✓ Rebuilt ' + Utilities.formatDate(new Date(), tz, 'EEE d MMM HH:mm'));
     } catch (err) {

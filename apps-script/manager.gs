@@ -316,6 +316,8 @@ function managerDoAdd_(e, sheet) {
 
   var ros = ensureRosterTab_(ss);
   ros.appendRow([team, name, false, '']);
+  // "they'll show in the app now" is only true if the cached roster is dropped.
+  try { invalidateLeagueCaches_(leagueNameForSheetId_(ss.getId())); } catch (ce) {}
   status.setValue('✓ Added ' + name + ' to ' + team + ' — they’ll show in the app now');
   sheet.getRange(MGR_ADD_NAME).clearContent();
   // No rebuild needed: a player with no games doesn't change any standings.
@@ -374,7 +376,7 @@ function managerDoRename_(e, sheet) {
 
     rebuildTeamStandings(ss, league);
     rebuildPlayerStandings(ss, league);
-    try { CacheService.getScriptCache().remove('standings:' + league); } catch (ce) {}
+    try { invalidateLeagueCaches_(league); } catch (ce) {}
 
     var tz = ss.getSpreadsheetTimeZone();
     status.setValue('✓ ' + oldName + ' → ' + newName + ' — updated ' + n +

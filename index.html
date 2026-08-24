@@ -918,30 +918,127 @@
   }
 
   // ============ ROSTER FETCHING ============
+  // The roster call is the slowest thing the app does and the only one that
+  // blocks Setup. Three layers keep a captain moving on a bad venue connection:
+  //   1. localStorage  — last known roster paints instantly, even offline.
+  //   2. retry         — one dropped fetch no longer strands the screen.
+  //   3. visible error — a failure says so and offers a retry, instead of
+  //                      showing "Loading teams..." forever (the 2026-08-24 bug:
+  //                      both error paths were empty catch blocks, and nothing
+  //                      refetched until a re-render, so the spinner was final).
   var cachedRosters = {};
+  var ROSTER_LS_KEY = 'gnpa_rosters_v1';
+  var ROSTER_TIMEOUT_MS = 15000;
+  var ROSTER_RETRY_DELAYS = [0, 1500, 4000]; // 3 attempts
+  var rosterInFlight = {};
+
+  function loadStoredRosters(){
+    try { return JSON.parse(localStorage.getItem(ROSTER_LS_KEY) || '{}') || {}; }
+    catch(e){ return {}; }
+  }
+  function storeRoster(league, entry){
+    try {
+      var all = loadStoredRosters();
+      all[league] = { teams: entry.teams, rosters: entry.rosters, ts: Date.now() };
+      localStorage.setItem(ROSTER_LS_KEY, JSON.stringify(all));
+    } catch(e){ /* quota or private mode — cache is optional */ }
+  }
+
+  function fetchRosterOnce(league){
+    var url = LEAGUE_ENDPOINT + '?action=roster&league=' + encodeURIComponent(league);
+    var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function(){ ctrl.abort(); }, ROSTER_TIMEOUT_MS) : null;
+    var opts = { method: 'GET' };
+    if(ctrl) opts.signal = ctrl.signal;
+    return fetch(url, opts)
+      .then(function(res){ return res.text(); })
+      .then(function(txt){
+        if(timer) clearTimeout(timer);
+        var data = JSON.parse(txt); // a throw here is caught by the retry chain
+        if(!data || !data.ok || !Array.isArray(data.teams) || !data.teams.length){
+          throw new Error(data && data.message ? data.message : 'Bad roster payload');
+        }
+        return { teams: data.teams, rosters: data.rosters || {} };
+      })
+      .catch(function(err){
+        if(timer) clearTimeout(timer);
+        throw err;
+      });
+  }
 
   function populateTeamDropdowns(){
     if(!state.league) return;
     var league = state.league;
+
+    // 1. Paint immediately from whatever we already have. Age is not checked:
+    //    a week-old team list beats an empty dropdown, and the network refresh
+    //    below corrects it seconds later.
+    var painted = false;
+    if(!cachedRosters[league]){
+      var stored = loadStoredRosters()[league];
+      if(stored && stored.teams && stored.teams.length){
+        cachedRosters[league] = { teams: stored.teams, rosters: stored.rosters || {} };
+      }
+    }
     if(cachedRosters[league]){
       fillTeamSelects(cachedRosters[league].teams);
       populatePlayerDropdowns();
-      return;
+      painted = true;
     }
-    var url = LEAGUE_ENDPOINT + '?action=roster&league=' + encodeURIComponent(league);
-    fetch(url, { method: 'GET' })
-      .then(function(res){ return res.text(); })
-      .then(function(txt){
-        try {
-          var data = JSON.parse(txt);
-          if(data && data.ok && Array.isArray(data.teams)){
-            cachedRosters[league] = { teams: data.teams, rosters: data.rosters || {} };
-            fillTeamSelects(data.teams);
-            populatePlayerDropdowns();
-          }
-        } catch(e){}
-      })
-      .catch(function(){});
+
+    if(rosterInFlight[league]) return; // don't stack requests across re-renders
+    rosterInFlight[league] = true;
+
+    // 2. Revalidate in the background, retrying a few times before giving up.
+    var attempt = 0;
+    function tryFetch(){
+      return fetchRosterOnce(league).catch(function(err){
+        attempt++;
+        if(attempt >= ROSTER_RETRY_DELAYS.length) throw err;
+        return new Promise(function(resolve){
+          setTimeout(resolve, ROSTER_RETRY_DELAYS[attempt]);
+        }).then(tryFetch);
+      });
+    }
+
+    tryFetch().then(function(entry){
+      rosterInFlight[league] = false;
+      storeRoster(league, entry);
+      var prev = cachedRosters[league];
+      cachedRosters[league] = entry;
+      if(state.league !== league) return;               // captain moved on
+      // Only touch the DOM if the team list actually changed, so a background
+      // refresh never resets a dropdown the captain is mid-way through using.
+      var changed = !prev || JSON.stringify(prev.teams) !== JSON.stringify(entry.teams);
+      if(changed || !painted){
+        fillTeamSelects(entry.teams);
+      }
+      populatePlayerDropdowns();
+    }).catch(function(){
+      rosterInFlight[league] = false;
+      if(state.league !== league) return;
+      if(painted) return;    // stale list is on screen and usable — leave it
+      showRosterError(league);
+    });
+  }
+
+  // No cached roster and the network failed: say so, and make it one tap to
+  // try again rather than a dead screen.
+  function showRosterError(league){
+    ['f-home','f-away'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(!el) return;
+      el.innerHTML = '<option value="">Couldn\'t load teams — tap to retry</option>';
+      el.onmousedown = function(ev){
+        ev.preventDefault();
+        el.onmousedown = null;
+        var other = document.getElementById(id === 'f-home' ? 'f-away' : 'f-home');
+        el.innerHTML = '<option value="">Loading teams...</option>';
+        if(other) { other.innerHTML = '<option value="">Loading teams...</option>'; other.onmousedown = null; }
+        rosterInFlight[league] = false;
+        populateTeamDropdowns();
+      };
+    });
   }
 
   function fillTeamSelects(teams){
