@@ -144,10 +144,18 @@ function doGet(e) {
     if (params.action === 'knownNames') {
       var league = params.league;
       if (!league) return jsonResponse({ ok: false, message: 'league parameter required' });
+      var knCache = CacheService.getScriptCache();
+      var knKey = 'knownNames:' + league + ':' + (params.team || '');
+      var knHit = knCache.get(knKey);
+      if (knHit) {
+        return ContentService.createTextOutput(knHit).setMimeType(ContentService.MimeType.JSON);
+      }
       var sheetId = lookupLeagueSheetId(league);
       if (!sheetId) return jsonResponse({ ok: false, message: 'Unknown league: ' + league });
       var result = getKnownNames(sheetId, params.team || null);
-      return jsonResponse({ ok: true, names: result.names, teams: result.teams });
+      var knPayload = JSON.stringify({ ok: true, names: result.names, teams: result.teams });
+      try { knCache.put(knKey, knPayload, 1200); } catch (cacheErr) { /* ignore */ }
+      return ContentService.createTextOutput(knPayload).setMimeType(ContentService.MimeType.JSON);
     }
     if (params.action === 'standings') {
       var league = params.league;
@@ -193,6 +201,18 @@ function handleRosterRequest(e) {
   var league = e && e.parameter && e.parameter.league;
   if (!league) return resp({ ok: false, message: 'Missing league' });
 
+  // Cache first. Measured 2026-08-24: uncached this call cost 4-6s EVERY time
+  // (it reopens the spreadsheet and rebuilds the Roster + seed + Players union
+  // from scratch), against a ~2.0s floor for any Apps Script request. That
+  // 4-6s window is also when a phone locking or dropping wifi kills the fetch,
+  // which used to strand the app on "Loading teams..." forever.
+  var cache = CacheService.getScriptCache();
+  var cacheKey = 'roster:' + league;
+  try {
+    var hit = cache.get(cacheKey);
+    if (hit) return ContentService.createTextOutput(hit).setMimeType(ContentService.MimeType.JSON);
+  } catch (cacheErr) { /* fall through and compute it */ }
+
   var sheetId = lookupLeagueSheetId(league);
   if (!sheetId) return resp({ ok: false, message: 'Unknown league: ' + league });
 
@@ -202,12 +222,18 @@ function handleRosterRequest(e) {
   // Roster tab hasn't been built yet.
   var roster = getRosterForLeague(ss);
 
-  return resp({
+  var payload = JSON.stringify({
     ok: true,
     teams: roster.teams,
     rosters: roster.rosters,
     captains: roster.captains
   });
+  // Only ever cache a good answer — never cache an error or an empty roster,
+  // or one bad read would be served to every captain for 20 minutes.
+  if (roster.teams && roster.teams.length) {
+    try { cache.put(cacheKey, payload, 1200); } catch (cacheErr) { /* ignore */ }
+  }
+  return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
 }
 // ============================================================
 //  SUBMISSION HANDLER
@@ -326,6 +352,9 @@ function handleSubmission(data) {
   }
 
   try { lock.releaseLock(); } catch (e) {}
+  // A player making their debut enters the roster union via the Players tab,
+  // so this submission just changed what ?action=roster would return.
+  invalidateLeagueCaches_(data.league);
   return {
     ok: true,
     message: 'Match logged in ' + data.league + ' (pending verification)'
@@ -532,10 +561,32 @@ function rebuildStandingsForLeague(leagueName) {
   var ss = SpreadsheetApp.openById(sheetId);
   rebuildTeamStandings(ss, leagueName);
   rebuildPlayerStandings(ss, leagueName);
-  // Invalidate the standings cache so the app sees fresh data immediately
+  invalidateLeagueCaches_(leagueName);
+}
+
+/**
+ * Drop every cached GET response for one league.
+ *
+ * Call this from ANY code path that changes what the app would be told —
+ * a rebuild, a submission (a debutant joins the roster union via the Players
+ * tab), a manager Add/Rename, or the mobile Refresh checkbox. A stale team
+ * picker is worse than a slow one, so when in doubt, call it.
+ *
+ * What it CANNOT catch: a manager editing the Roster or Team Codes tab by
+ * hand. That is what the 20-minute TTL is for — do not raise it much beyond
+ * that, and point managers at the Refresh checkbox as the manual escape hatch.
+ */
+function invalidateLeagueCaches_(leagueName) {
+  if (!leagueName) return;
   try {
-    CacheService.getScriptCache().remove('standings:' + leagueName);
-  } catch (e) { /* ignore */ }
+    var cache = CacheService.getScriptCache();
+    cache.remove('standings:' + leagueName);
+    cache.remove('roster:' + leagueName);
+    // knownNames is keyed per-team as well; clear the league-wide entry and
+    // let any per-team entries age out on their own (they are read-only
+    // typo-detection hints, never used to gate a submission).
+    cache.remove('knownNames:' + leagueName + ':');
+  } catch (e) { /* cache is best-effort — never break a write over it */ }
 }
 
 function rebuildTeamStandings(ss, leagueName) {
