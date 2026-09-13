@@ -928,8 +928,15 @@
   //                      refetched until a re-render, so the spinner was final).
   var cachedRosters = {};
   var ROSTER_LS_KEY = 'gnpa_rosters_v1';
-  var ROSTER_TIMEOUT_MS = 15000;
-  var ROSTER_RETRY_DELAYS = [0, 1500, 4000]; // 3 attempts
+  // Measured 2026-09-13: the script itself finishes in 0.5-3.5s, but Google's
+  // redirect hop in front of it intermittently holds a request 30-60s and
+  // then either answers or 404s. A short per-request timeout would abort the
+  // slow-but-successful ones, so instead requests are HEDGED: start one, and
+  // if nothing has answered after ROSTER_HEDGE_MS start another alongside it.
+  // First good answer wins; give up only once every attempt has failed.
+  var ROSTER_TIMEOUT_MS = 45000;
+  var ROSTER_HEDGE_MS = 6000;
+  var ROSTER_MAX_ATTEMPTS = 4;
   var rosterInFlight = {};
 
   function loadStoredRosters(){
@@ -955,9 +962,10 @@
       .then(function(txt){
         if(timer) clearTimeout(timer);
         var data = JSON.parse(txt); // a throw here is caught by the retry chain
-        if(!data || !data.ok || !Array.isArray(data.teams) || !data.teams.length){
+        if(!data || !data.ok || !Array.isArray(data.teams)){
           throw new Error(data && data.message ? data.message : 'Bad roster payload');
         }
+        // ok + zero teams is a real answer (league not set up yet), not a failure.
         return { teams: data.teams, rosters: data.rosters || {} };
       })
       .catch(function(err){
@@ -989,21 +997,35 @@
     if(rosterInFlight[league]) return; // don't stack requests across re-renders
     rosterInFlight[league] = true;
 
-    // 2. Revalidate in the background, retrying a few times before giving up.
-    var attempt = 0;
-    function tryFetch(){
-      return fetchRosterOnce(league).catch(function(err){
-        attempt++;
-        if(attempt >= ROSTER_RETRY_DELAYS.length) throw err;
-        return new Promise(function(resolve){
-          setTimeout(resolve, ROSTER_RETRY_DELAYS[attempt]);
-        }).then(tryFetch);
+    // 2. Revalidate in the background with hedged requests (see ROSTER_HEDGE_MS).
+    function hedgedFetch(){
+      return new Promise(function(resolve, reject){
+        var started = 0, failed = 0, done = false, hedgeTimer = null, lastErr = null;
+        function launch(){
+          if(done || started >= ROSTER_MAX_ATTEMPTS) return;
+          started++;
+          clearTimeout(hedgeTimer);
+          if(started < ROSTER_MAX_ATTEMPTS) hedgeTimer = setTimeout(launch, ROSTER_HEDGE_MS);
+          fetchRosterOnce(league).then(function(entry){
+            if(done) return;
+            done = true;
+            clearTimeout(hedgeTimer);
+            resolve(entry);
+          }, function(err){
+            if(done) return;
+            failed++;
+            lastErr = err;
+            if(failed >= ROSTER_MAX_ATTEMPTS){ done = true; clearTimeout(hedgeTimer); reject(lastErr); }
+            else if(failed >= started){ setTimeout(launch, 1000); } // nothing left running
+          });
+        }
+        launch();
       });
     }
 
-    tryFetch().then(function(entry){
+    hedgedFetch().then(function(entry){
       rosterInFlight[league] = false;
-      storeRoster(league, entry);
+      if(entry.teams.length) storeRoster(league, entry);
       var prev = cachedRosters[league];
       cachedRosters[league] = entry;
       if(state.league !== league) return;               // captain moved on
