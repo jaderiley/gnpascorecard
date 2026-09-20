@@ -10,11 +10,15 @@
  *
  * Someone then has to turn ~120 of those rows into a Roster tab and a set of
  * team codes. Doing it by hand is slow and the file is never clean. The real
- * 2026 Tshwane enrolment (119 rows) carried, all at once: trailing spaces on
- * nearly every club/team/name, two players entered twice, five blank rows
- * under a team name that differed from a real team only by a trailing space,
- * six ID numbers whose leading zero Excel had eaten, three IDs that fail their
- * checksum, one 14-digit ID, and eleven cells with a stray "*" pasted in.
+ * 2026 Tshwane enrolment (119 rows) carried trailing spaces on nearly every
+ * club/team/name, two players entered twice, and five blank rows under a team
+ * name that differed from a real team only by a trailing space.
+ *
+ * THE WHOLE SHEET GETS PASTED, BUT ONLY TEAM AND PLAYER ARE USED. The app has
+ * no use for ID number, phone, gender or race, so none of them are validated
+ * or stored — an SA ID number is personal data and does not belong in a sheet
+ * a dozen managers can open. The columns stay in the paste area purely so the
+ * enrolment file drops in unedited; everything but Team and Player is ignored.
  *
  * So this is NOT a "load the file" button. It is a two-tick tool:
  *
@@ -31,11 +35,10 @@
  *     ✎ cleaned    fixed automatically, reported so nothing happens silently.
  *
  * WHAT IT WRITES
- *     Roster      Team | Player | Captain? | Code | Club | ID Number | Phone
- *                 Columns 5-7 are EXTRA. readRosterTab() in roster.gs reads
- *                 only the first 4, so the app ignores them — and the public
- *                 ?action=roster endpoint returns names only, never codes,
- *                 IDs or phone numbers. ID/phone stay inside the sheet.
+ *     Roster      Team | Player | Captain? | Code — exactly the shape
+ *                 readRosterTab() in roster.gs already expects. The enrolment
+ *                 sheet lists each team's captain first, so the first
+ *                 surviving player of a block gets Captain? ticked.
  *     Team Codes  topped up via setupTeamCodesForSheet() (roster.gs), which
  *                 never overwrites a code that already exists.
  *
@@ -69,7 +72,11 @@ var IMP_HEADER_ROW = 9;   // the paste area's own header
 var IMP_FIRST_ROW  = 10;  // first pasted data row
 var IMP_ISSUE_COL  = 8;   // column H — "What to fix"
 
-var IMP_HEADERS = ['Club', 'Team', 'Player', 'ID Number', 'Phone', 'Gender', 'Race', 'What to fix'];
+// Columns 4-7 are never read. They exist so the enrolment file pastes in
+// unedited; only Team and Player are used. Their headers say so.
+var IMP_HEADERS = ['Club', 'Team', 'Player',
+                   'ID (not used)', 'Phone (not used)', 'Gender (not used)', 'Race (not used)',
+                   'What to fix  ←  filled in when you tick Check'];
 
 var IMP_MODE_REPLACE = 'Replace the whole roster (new season)';
 var IMP_MODE_ADD     = 'Add to the existing roster (mid-season)';
@@ -125,17 +132,21 @@ function ensureImportTab_(ss) {
          .clearDataValidations().removeCheckboxes();
   }
 
-  sheet.setColumnWidth(1, 170);
-  sheet.setColumnWidth(2, 300);
-  for (var c = 3; c <= 7; c++) sheet.setColumnWidth(c, 150);
+  sheet.setColumnWidth(1, 150);
+  sheet.setColumnWidth(2, 260);
+  sheet.setColumnWidth(3, 220);
+  // The four unused columns stay narrow so "What to fix" sits as close to the
+  // player's name as possible — on a phone it is the only column that matters.
+  for (var c = 4; c <= 7; c++) sheet.setColumnWidth(c, 78);
   sheet.setColumnWidth(IMP_ISSUE_COL, 460);
   sheet.setHiddenGridlines(true);
 
   band_(sheet, 'A1:D1', '📥  IMPORT ENROLLED PLAYERS', '#1f6fc4', '#ffffff', 12);
   note_(sheet, 'A2:H2',
-    'Paste the enrolment sheet into row ' + IMP_FIRST_ROW + ' and below, in the column order shown on ' +
-    'row ' + IMP_HEADER_ROW + '. Blank rows between teams are fine. Then tick Check — nothing is ' +
-    'written until you tick Import.');
+    'Paste the whole enrolment sheet into row ' + IMP_FIRST_ROW + ' and below — no need to tidy it ' +
+    'first. Blank rows between teams are fine, and only Team and Player are used. Then tick Check: ' +
+    'column H fills in with anything that needs fixing. Nothing is written until you tick Import. ' +
+    'Put each team’s captain first in their block — column H marks who that came out as.');
 
   label_(sheet, 'A4', 'Mode');
   sheet.getRange(IMP_MODE)
@@ -206,29 +217,6 @@ function impClean_(v) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
 }
 
-// Digits only — strips the stray "*", spaces, dashes and brackets people paste.
-function impDigits_(v) {
-  return String(v == null ? '' : v).replace(/\D/g, '');
-}
-
-// SA ID numbers carry a Luhn check digit over all 13 digits.
-function impLuhn_(s) {
-  var total = 0;
-  for (var i = 0; i < s.length; i++) {
-    var d = parseInt(s.charAt(s.length - 1 - i), 10);
-    if (i % 2 === 1) { d *= 2; if (d > 9) d -= 9; }
-    total += d;
-  }
-  return total % 10 === 0;
-}
-
-// First 6 digits are YYMMDD. Catches transposed digits the checksum misses.
-function impDobOk_(s) {
-  var mm = parseInt(s.substr(2, 2), 10);
-  var dd = parseInt(s.substr(4, 2), 10);
-  return mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31;
-}
-
 function impSquadMin_(league) {
   var n = IMP_SQUAD_MIN[String(league || '').trim().toLowerCase()];
   return n || 5;
@@ -273,65 +261,19 @@ function impParse_(sheet) {
 //  The rules
 // ============================================================
 // Returns { records, teams, nTeams, nPlayers, blockers, warnings, fixes }.
-// Each record gains .notes (strings, already severity-prefixed), .blocked,
-// .skip (blank team stub — not imported, not an error) plus the cleaned
-// .id / .tel it would be imported with.
+// Each record gains .notes (strings, already severity-prefixed), .blocked and
+// .skip (a row with a team but no player — not imported, not an error).
 function impAnalyse_(records, league) {
   var byTeamKey = {};   // lower-case team -> { display, recs }
   var i, rec;
 
-  // ---- pass 1: per-row cleaning of ID + phone ----
+  // ---- pass 1: structure ----
+  // ID number, phone, gender and race are deliberately NOT looked at. Nothing
+  // downstream reads them, so validating them would only paint the sheet
+  // yellow over data the app never uses.
   for (i = 0; i < records.length; i++) {
     rec = records[i];
 
-    // ID number
-    rec.id = '';
-    var idRaw = rec.idRaw;
-    var noId = /^(no\s*id|none|n\/?a|-)$/i.test(idRaw);
-    if (!idRaw) {
-      if (rec.name) rec.notes.push('⚠ No ID number');
-    } else if (noId) {
-      rec.notes.push('⚠ ID recorded as "' + idRaw + '" — get the real one before the season starts');
-    } else {
-      var digits = impDigits_(idRaw);
-      if (digits !== idRaw) rec.dirty = true;
-
-      if (digits.length === 12 && impLuhn_('0' + digits)) {
-        // Excel ate the leading zero of an otherwise perfect ID. Very common.
-        rec.id = '0' + digits;
-        rec.notes.push('✎ ID had a missing leading zero — restored as ' + rec.id);
-        rec.dirty = true;
-      } else if (digits.length === 13) {
-        rec.id = digits;
-        if (!impLuhn_(digits)) {
-          rec.notes.push('⚠ ID ' + digits + ' fails its check digit — one digit is probably wrong');
-        } else if (!impDobOk_(digits)) {
-          rec.notes.push('⚠ ID ' + digits + ' starts with an impossible date of birth');
-        } else if (digits !== idRaw) {
-          rec.notes.push('✎ Stray characters removed from the ID ("' + idRaw + '" → ' + digits + ')');
-        }
-      } else {
-        rec.id = digits;
-        rec.notes.push('⚠ ID "' + idRaw + '" has ' + digits.length +
-                       ' digits — an SA ID has 13. Check it against their card');
-      }
-    }
-
-    // Phone
-    rec.tel = impDigits_(rec.telRaw);
-    if (rec.tel.length === 11 && rec.tel.indexOf('27') === 0) rec.tel = '0' + rec.tel.substr(2);
-    if (rec.telRaw && rec.tel !== rec.telRaw) {
-      rec.notes.push('✎ Phone cleaned up ("' + rec.telRaw + '" → ' + rec.tel + ')');
-      rec.dirty = true;
-    }
-    if (rec.name && !rec.tel) {
-      rec.notes.push('⚠ No phone number');
-    } else if (rec.tel && (rec.tel.length !== 10 || rec.tel.charAt(0) !== '0')) {
-      rec.notes.push('⚠ Phone ' + rec.tel + ' is ' + rec.tel.length +
-                     ' digits — expected 10, starting with 0');
-    }
-
-    // Structure
     if (!rec.team && rec.name) {
       rec.notes.push('⛔ No team on this row — which team is ' + rec.name + ' playing for?');
       rec.blocked = true;
@@ -350,7 +292,6 @@ function impAnalyse_(records, league) {
   }
 
   // ---- pass 2: duplicates within a team, and across teams ----
-  var byIdAll = {};    // cleaned ID -> [rec]
   var byNameAll = {};  // lower-case name -> [rec]
 
   // Same name twice in one team block: one person entered twice. Unambiguous,
@@ -374,7 +315,6 @@ function impAnalyse_(records, league) {
     if (!r.name || r.dropDuplicate) return;
     var nk = r.name.toLowerCase();
     (byNameAll[nk] = byNameAll[nk] || []).push(r);
-    if (r.id && r.id.length === 13) (byIdAll[r.id] = byIdAll[r.id] || []).push(r);
   });
 
   // The same person enrolled for two teams — standings would count them for
@@ -391,19 +331,6 @@ function impAnalyse_(records, league) {
       });
     }
   });
-  Object.keys(byIdAll).forEach(function (id) {
-    var list = byIdAll[id];
-    var names = {};
-    list.forEach(function (r) { names[r.name.toLowerCase()] = r.name; });
-    if (Object.keys(names).length > 1) {
-      var shown = Object.keys(names).map(function (k) { return names[k]; }).join('" / "');
-      list.forEach(function (r) {
-        r.notes.push('⛔ ID ' + id + ' is used by "' + shown + '" — same ID, different names');
-        r.blocked = true;
-      });
-    }
-  });
-
   // ---- pass 3: per-team checks ----
   var min = impSquadMin_(league);
   var teams = [];
@@ -433,10 +360,9 @@ function impAnalyse_(records, league) {
     // The enrolment sheet lists each team's captain first. Say who that makes
     // the captain, so a wrong running order is caught at Check time rather
     // than discovered in the app.
-    if (players.length) {
-      players[0].notes.push('✎ Taken as ' + t.display + '’s captain (listed first). ' +
-                            'Wrong? Move the right player to the top of the block');
-    }
+    // Terse on purpose: this fires once per team, so a sentence here would
+    // paint 18 rows green with boilerplate. Row 2 explains the rule once.
+    if (players.length) players[0].notes.push('✎ Captain');
 
     // Short squad. Skipped when the team already has a ⛔ row: "0 player(s)"
     // stacked on top of the real error is noise, and the count is meaningless
@@ -451,7 +377,7 @@ function impAnalyse_(records, league) {
 
   teams.sort(function (a, b) { return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1; });
 
-  var blockers = 0, warnings = 0, fixes = 0, nPlayers = 0;
+  var blockedRows = [], warnings = 0, fixes = 0, nPlayers = 0;
   records.forEach(function (r) {
     var hasBlock = false, hasWarn = false, hasFix = false;
     r.notes.forEach(function (n) {
@@ -459,7 +385,7 @@ function impAnalyse_(records, league) {
       else if (n.charAt(0) === '⚠') hasWarn = true;
       else hasFix = true;
     });
-    if (hasBlock) blockers++;
+    if (hasBlock) blockedRows.push(r.row);
     if (hasWarn) warnings++;
     if (hasFix) fixes++;
   });
@@ -470,10 +396,23 @@ function impAnalyse_(records, league) {
     teams: teams.filter(function (t) { return t.players.length; }),
     nTeams: teams.filter(function (t) { return t.players.length; }).length,
     nPlayers: nPlayers,
-    blockers: blockers,
+    blockers: blockedRows.length,
+    blockedRows: blockedRows,
     warnings: warnings,
     fixes: fixes
   };
+}
+
+// "row 14" / "rows 14 and 22" / "rows 14, 22 and 31" — naming them saves the
+// manager scrolling a 120-row sheet hunting for the red cells.
+function impRowList_(rows) {
+  var shown = rows.slice(0, 8).map(function (r) { return String(r); });
+  var extra = rows.length - shown.length;
+  var word = rows.length === 1 ? 'row ' : 'rows ';
+  var list = shown.length > 1
+    ? shown.slice(0, -1).join(', ') + ' and ' + shown[shown.length - 1]
+    : shown[0];
+  return word + list + (extra > 0 ? ' (+' + extra + ' more)' : '');
 }
 
 // ============================================================
@@ -495,15 +434,14 @@ function impDoCheck_(e, sheet) {
   var res = impAnalyse_(records, league);
   impWriteNotes_(sheet, res);
 
-  var counts = res.nTeams + ' team(s), ' + res.nPlayers + ' player(s)';
+  var counts = res.nTeams + ' teams, ' + res.nPlayers + ' players';
   if (res.blockers) {
-    status.setValue('⛔ ' + res.blockers + ' row(s) must be fixed before importing — see the ' +
-      '"What to fix" column. Also: ' + res.warnings + ' to check, ' + res.fixes +
-      ' cleaned automatically. Would import ' + counts + '.');
+    status.setValue('⛔ Fix ' + impRowList_(res.blockedRows) + ' before importing — ' +
+      'column H says what is wrong with each. Would import ' + counts + '.');
   } else {
-    status.setValue('✓ Ready to import — ' + counts + '. ' + res.warnings +
-      ' row(s) worth checking, ' + res.fixes + ' cleaned automatically. ' +
-      'Read those, then tick Import.');
+    status.setValue('✓ Ready to import — ' + counts + '. ' +
+      (res.warnings ? res.warnings + ' row(s) worth a look in column H. ' : '') +
+      'Tick Import below.');
   }
 }
 
@@ -563,8 +501,8 @@ function impDoImport_(e, sheet) {
   impWriteNotes_(sheet, res);
 
   if (res.blockers) {
-    status.setValue('⛔ Not imported — ' + res.blockers + ' row(s) still need fixing. ' +
-      'Look for the red rows in "What to fix", sort them out, then tick Check.');
+    status.setValue('⛔ Not imported — fix ' + impRowList_(res.blockedRows) +
+      ' first (the red rows in column H), then tick Check.');
     return;
   }
   if (!res.nPlayers) {
@@ -609,15 +547,14 @@ function impDoImport_(e, sheet) {
       var captain = t.players.length ? t.players[0].name : '';
       t.players.forEach(function (p) {
         if (!replace && existing[(t.name + '|' + p.name).toLowerCase()]) return;
-        rows.push([t.name, p.name, p.name === captain, '', p.club, p.id, p.tel]);
+        rows.push([t.name, p.name, p.name === captain, '']);
       });
     });
 
     if (rows.length) {
       var start = Math.max(ros.getLastRow() + 1, 2);
       ros.getRange(start, 4, rows.length, 1).setNumberFormat('@'); // Code keeps leading zeros
-      ros.getRange(start, 6, rows.length, 2).setNumberFormat('@'); // ID + phone are text
-      ros.getRange(start, 1, rows.length, 7).setValues(rows);
+      ros.getRange(start, 1, rows.length, ROSTER_HEADERS.length).setValues(rows);
       ros.getRange(start, 3, rows.length, 1).insertCheckboxes();
     }
 
@@ -648,19 +585,15 @@ function impDoImport_(e, sheet) {
 
 function impEnsureRosterTab_(ss) {
   var sh = ss.getSheetByName(ROSTER_TAB);
-  var headers = ROSTER_HEADERS.concat(['Club', 'ID Number', 'Phone']);
   if (!sh) {
     sh = ss.insertSheet(ROSTER_TAB);
-    sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
+    sh.getRange(1, 1, 1, ROSTER_HEADERS.length).setValues([ROSTER_HEADERS]).setFontWeight('bold');
     sh.setFrozenRows(1);
     sh.setColumnWidth(1, 240);
     sh.setColumnWidth(2, 200);
   } else if (sh.getLastRow() === 0) {
-    sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
+    sh.getRange(1, 1, 1, ROSTER_HEADERS.length).setValues([ROSTER_HEADERS]).setFontWeight('bold');
     sh.setFrozenRows(1);
-  } else if (sh.getLastColumn() < headers.length) {
-    // Existing 4-column Roster: widen it without disturbing columns 1-4.
-    sh.getRange(1, 5, 1, 3).setValues([['Club', 'ID Number', 'Phone']]).setFontWeight('bold');
   }
   return sh;
 }
