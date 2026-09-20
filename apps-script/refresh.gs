@@ -110,6 +110,8 @@ function onLeagueRefreshEdit(e) {
     var sheet = e.range.getSheet();
     // Manager-tools tab shares this same installable trigger (manager.gs).
     if (sheet.getName() === MANAGER_TAB) { onManagerEdit_(e, sheet); return; }
+    // Player-import tab shares it too (import.gs).
+    if (sheet.getName() === IMPORT_TAB) { onImportEdit_(e, sheet); return; }
     if (sheet.getName() !== REFRESH_TAB) return;
     if (e.range.getA1Notation() !== REFRESH_CHECKBOX_CELL) return;
     if (e.range.getValue() !== true) return; // untick or non-checkbox edit
