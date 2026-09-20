@@ -430,6 +430,14 @@ function impAnalyse_(records, league) {
         }
       });
     }
+    // The enrolment sheet lists each team's captain first. Say who that makes
+    // the captain, so a wrong running order is caught at Check time rather
+    // than discovered in the app.
+    if (players.length) {
+      players[0].notes.push('✎ Taken as ' + t.display + '’s captain (listed first). ' +
+                            'Wrong? Move the right player to the top of the block');
+    }
+
     // Short squad. Skipped when the team already has a ⛔ row: "0 player(s)"
     // stacked on top of the real error is noise, and the count is meaningless
     // until the blocker is resolved.
@@ -594,9 +602,14 @@ function impDoImport_(e, sheet) {
 
     var rows = [];
     res.teams.forEach(function (t) {
+      // The enrolment sheet lists the captain first in each team block, so the
+      // first surviving player of the block gets Captain? ticked. Compared by
+      // name, not loop position: in Add mode the earlier players are skipped
+      // as already-present, which would otherwise promote the wrong person.
+      var captain = t.players.length ? t.players[0].name : '';
       t.players.forEach(function (p) {
         if (!replace && existing[(t.name + '|' + p.name).toLowerCase()]) return;
-        rows.push([t.name, p.name, false, '', p.club, p.id, p.tel]);
+        rows.push([t.name, p.name, p.name === captain, '', p.club, p.id, p.tel]);
       });
     });
 
