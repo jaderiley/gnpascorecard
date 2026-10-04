@@ -552,6 +552,101 @@
     line-height: 1.6;
   }
   .standings-loading { color: var(--text-secondary); padding: var(--sp-4); text-align: center; }
+
+  /* ============ PLAYER VIEW (inside standings overlay) ============ */
+  .standings-search {
+    position: sticky;
+    top: calc(-1 * var(--sp-3));
+    z-index: 2;
+    background: var(--bg);
+    margin: calc(-1 * var(--sp-3)) calc(-1 * var(--sp-4)) var(--sp-2);
+    padding: var(--sp-3) var(--sp-4) var(--sp-2);
+  }
+  .standings-search input { width: 100%; }
+  .standings-table tr.pl-row { cursor: pointer; }
+  .standings-table tr.pl-row:active td { background: var(--surface-2); }
+  .standings-table tr.pl-row .name::after { content: " \203A"; color: var(--text-tertiary); }
+  .player-back {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    padding: var(--sp-1) var(--sp-3);
+    font-size: var(--fs-sm);
+    color: var(--text-secondary);
+    margin-bottom: var(--sp-3);
+  }
+  .player-head-name { font-size: var(--fs-lg); font-weight: 600; line-height: 1.25; word-break: break-word; }
+  .player-head-team { font-size: var(--fs-sm); color: var(--text-secondary); margin-top: 2px; }
+  .player-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--sp-2);
+    margin: var(--sp-3) 0 var(--sp-2);
+  }
+  .player-stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--sp-2);
+    text-align: center;
+  }
+  .player-stat__val { font-size: var(--fs-lg); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .player-stat__val.pct { color: var(--accent); }
+  .player-stat__lbl { font-size: var(--fs-xs); color: var(--text-secondary); margin-top: 2px; }
+  .player-note { font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.5; margin-bottom: var(--sp-3); }
+  .player-match {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: var(--sp-3);
+    overflow: hidden;
+  }
+  .player-match__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--sp-2);
+    padding: var(--sp-3);
+    border-bottom: 1px solid var(--border);
+  }
+  .player-match__date { font-size: var(--fs-xs); color: var(--text-tertiary); }
+  .player-match__teams { font-size: var(--fs-sm); font-weight: 500; line-height: 1.35; word-break: break-word; }
+  .player-match__ha { font-size: var(--fs-xs); color: var(--text-secondary); margin-top: 2px; }
+  .player-match__score { text-align: right; flex-shrink: 0; }
+  .player-match__final { font-size: var(--fs-md); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .player-chip {
+    display: inline-block;
+    min-width: 22px;
+    padding: 1px 6px;
+    margin-left: var(--sp-1);
+    border-radius: 6px;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    text-align: center;
+  }
+  .player-chip.W { background: var(--success-bg); color: var(--success); }
+  .player-chip.L { background: rgba(232, 97, 91, 0.15); color: var(--danger); }
+  .player-chip.D { background: var(--away-bg); color: var(--away); }
+  .player-match__night { font-size: var(--fs-xs); color: var(--text-secondary); margin-top: 2px; }
+  .player-match__night strong { color: var(--text); }
+  .player-frame {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    border-bottom: 1px solid var(--border);
+    font-size: var(--fs-sm);
+  }
+  .player-frame:last-child { border-bottom: none; }
+  .player-frame__opp { min-width: 0; word-break: break-word; line-height: 1.3; }
+  .player-frame__pos { color: var(--text-tertiary); font-size: var(--fs-xs); margin-right: var(--sp-1); }
+  .player-frame__wo { color: var(--text-secondary); font-style: italic; }
+  .player-frame__res { flex-shrink: 0; font-size: var(--fs-xs); font-weight: 600; }
+  .player-frame__res.won { color: var(--success); }
+  .player-frame__res.lost { color: var(--danger); }
+  .player-frame__res.wo { color: var(--away); }
+  .player-frames-missing { padding: var(--sp-2) var(--sp-3); font-size: var(--fs-xs); color: var(--text-secondary); }
 </style>
 </head>
 <body>
@@ -1192,7 +1287,7 @@
 
   // ============ STANDINGS OVERLAY ============
   var standingsCache = { leagues: null, byLeague: {} };
-  var standingsView = { league: null, tab: 'team' };
+  var standingsView = { league: null, tab: 'team', player: null, search: '', listScroll: 0 };
 
   function openStandings(){
     if(!standingsView.league){
@@ -1232,12 +1327,16 @@
       '</div>';
     document.body.appendChild(overlay);
 
-    overlay.querySelector('#standings-close').addEventListener('click', closeStandings);
+    overlay.querySelector('#standings-close').addEventListener('click', function(){
+      standingsView.player = null;
+      closeStandings();
+    });
     overlay.querySelector('#standings-copy').addEventListener('click', exportStandingsToExcel);
     var toggleBtns = overlay.querySelectorAll('.standings-toggle button');
     for(var i=0;i<toggleBtns.length;i++){
       toggleBtns[i].addEventListener('click', function(e){
         standingsView.tab = e.currentTarget.getAttribute('data-tab');
+        standingsView.player = null;
         renderStandingsOverlay();
       });
     }
@@ -1245,6 +1344,8 @@
     var leagueSelect = overlay.querySelector('#standings-league');
     leagueSelect.addEventListener('change', function(e){
       standingsView.league = e.target.value;
+      standingsView.player = null;
+      standingsView.search = '';
       renderStandingsOverlay();
     });
 
@@ -1335,6 +1436,10 @@
   }
 
   function renderStandingsTable(body, data){
+    if(standingsView.tab === 'player' && standingsView.player){
+      renderPlayerDetail(body);
+      return;
+    }
     if(standingsView.tab === 'team'){
       if(!data.teams.length){
         body.innerHTML = '<div class="standings-empty">No team standings yet for this league.<br>Manager needs to verify some matches and rebuild standings.</div>';
@@ -1380,7 +1485,7 @@
             '<span class="standings-cutoff__note">' + escapeHtml(cutoffNote(p)) + '</span>' +
           '</td></tr>';
         }
-        return '<tr>' +
+        return '<tr class="pl-row" data-i="' + data.players.indexOf(p) + '">' +
           '<td class="pos num">' + p.pos + '</td>' +
           '<td>' +
             '<div class="name">' + escapeHtml(p.player) + '</div>' +
@@ -1392,6 +1497,7 @@
         '</tr>';
       }).join('');
       body.innerHTML =
+        '<div class="standings-search"><input type="search" id="player-search" placeholder="Search players or teams..." autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search players" value="' + escapeHtml(standingsView.search) + '"></div>' +
         '<table class="standings-table">' +
           '<thead><tr>' +
             '<th class="num">#</th>' +
@@ -1400,9 +1506,193 @@
             '<th class="num">F/P</th>' +
             '<th class="num">%</th>' +
           '</tr></thead>' +
-          '<tbody>' + rows + '</tbody>' +
-        '</table>';
+          '<tbody id="player-tbody">' + rows + '</tbody>' +
+        '</table>' +
+        '<div class="standings-empty" id="player-search-empty" style="display:none;">No players match your search.</div>';
+      wirePlayerList(body, data);
     }
+  }
+
+  // ============ PLAYER VIEW ============
+  var playerCache = {};
+
+  function normSearch(s){
+    // Accent-insensitive so "sune" finds "Suné".
+    var t = String(s||'').toLowerCase();
+    try { t = t.normalize('NFD').replace(/[̀-ͯ]/g, ''); } catch(e){}
+    return t.trim();
+  }
+
+  function applyPlayerSearch(body, data){
+    var q = normSearch(standingsView.search);
+    var rows = body.querySelectorAll('#player-tbody tr');
+    var shown = 0;
+    for(var i=0;i<rows.length;i++){
+      var tr = rows[i];
+      if(tr.classList.contains('standings-cutoff')){
+        tr.style.display = q ? 'none' : '';
+        continue;
+      }
+      var p = data.players[Number(tr.getAttribute('data-i'))];
+      var hit = !q || normSearch(p.player + ' ' + p.team).indexOf(q) !== -1;
+      tr.style.display = hit ? '' : 'none';
+      if(hit) shown++;
+    }
+    var empty = body.querySelector('#player-search-empty');
+    if(empty) empty.style.display = (q && !shown) ? '' : 'none';
+  }
+
+  function wirePlayerList(body, data){
+    var input = body.querySelector('#player-search');
+    var tbody = body.querySelector('#player-tbody');
+    if(input){
+      input.addEventListener('input', function(){
+        standingsView.search = input.value;
+        applyPlayerSearch(body, data);
+      });
+    }
+    if(tbody){
+      tbody.addEventListener('click', function(e){
+        var tr = e.target.closest ? e.target.closest('tr.pl-row') : null;
+        if(!tr) return;
+        var p = data.players[Number(tr.getAttribute('data-i'))];
+        if(!p) return;
+        standingsView.listScroll = body.scrollTop;
+        standingsView.player = { team: p.team, name: p.player, row: p };
+        renderPlayerDetail(body);
+      });
+    }
+    applyPlayerSearch(body, data);
+    if(standingsView.listScroll){
+      body.scrollTop = standingsView.listScroll;
+      standingsView.listScroll = 0;
+    }
+  }
+
+  function closePlayerDetail(){
+    standingsView.player = null;
+    var body = document.getElementById('standings-body');
+    if(!body) return;
+    var cached = standingsCache.byLeague[standingsView.league];
+    if(cached) renderStandingsTable(body, cached);
+  }
+
+  function renderPlayerDetail(body){
+    var sel = standingsView.player;
+    if(!sel) return;
+    body.scrollTop = 0;
+    var key = standingsView.league + '|' + sel.team + '|' + sel.name;
+    if(playerCache[key]){
+      paintPlayerDetail(body, playerCache[key]);
+      return;
+    }
+    body.innerHTML = playerBackBtn() + '<div class="standings-loading">Loading ' + escapeHtml(sel.name) + '...</div>';
+    wirePlayerBack(body);
+    var league = standingsView.league;
+    fetch(LEAGUE_ENDPOINT + '?action=playerMatches&league=' + encodeURIComponent(league) +
+          '&team=' + encodeURIComponent(sel.team) + '&player=' + encodeURIComponent(sel.name), { method: 'GET' })
+      .then(function(res){ return res.text(); })
+      .then(function(txt){
+        // Ignore a stale response if the user already went back or picked someone else.
+        var cur = standingsView.player;
+        if(!cur || cur.team !== sel.team || cur.name !== sel.name || standingsView.league !== league) return;
+        var data;
+        try { data = JSON.parse(txt); } catch(e){ data = null; }
+        if(data && data.ok){
+          playerCache[key] = data;
+          paintPlayerDetail(body, data);
+        } else {
+          var msg = data && data.message ? data.message : 'Could not load this player. The app may need its backend updated.';
+          body.innerHTML = playerBackBtn() + '<div class="standings-empty">' + escapeHtml(msg) + '</div>';
+          wirePlayerBack(body);
+        }
+      })
+      .catch(function(err){
+        var cur = standingsView.player;
+        if(!cur || cur.team !== sel.team || cur.name !== sel.name) return;
+        body.innerHTML = playerBackBtn() + '<div class="standings-empty">Network error: ' + escapeHtml(err.message) +
+          '<br><button id="player-retry" style="margin-top:12px;padding:8px 16px;">Try again</button></div>';
+        wirePlayerBack(body);
+        var rb = body.querySelector('#player-retry');
+        if(rb) rb.addEventListener('click', function(){ renderPlayerDetail(body); });
+      });
+  }
+
+  function playerBackBtn(){
+    return '<button class="player-back" id="player-back" type="button">&#8249; Back to players</button>';
+  }
+  function wirePlayerBack(body){
+    var b = body.querySelector('#player-back');
+    if(b) b.addEventListener('click', closePlayerDetail);
+  }
+
+  function fmtMatchDate(iso){
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+    if(!m) return iso || '';
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return Number(m[3]) + ' ' + months[Number(m[2])-1] + ' ' + m[1];
+  }
+
+  function paintPlayerDetail(body, data){
+    var t = data.totals || {};
+    var sel = standingsView.player || {};
+    var html = playerBackBtn() +
+      '<div class="player-head-name">' + escapeHtml(data.player || sel.name) + '</div>' +
+      '<div class="player-head-team">' + escapeHtml(data.team || sel.team) + '</div>' +
+      '<div class="player-stats">' +
+        '<div class="player-stat"><div class="player-stat__val">' + (t.framesWon || 0) + '</div><div class="player-stat__lbl">Frames won</div></div>' +
+        '<div class="player-stat"><div class="player-stat__val">' + (t.framesPlayed || 0) + '</div><div class="player-stat__lbl">Frames played</div></div>' +
+        '<div class="player-stat"><div class="player-stat__val pct">' + (Math.round((t.pct || 0)*100)/100).toFixed(2) + '%</div><div class="player-stat__lbl">Win rate</div></div>' +
+        '<div class="player-stat"><div class="player-stat__val">' + (t.matches || 0) + '</div><div class="player-stat__lbl">Matches</div></div>' +
+      '</div>';
+    if(t.seedFramesPlayed){
+      html += '<div class="player-note">Includes ' + t.seedFramesWon + ' won from ' + t.seedFramesPlayed +
+        ' frames played before the app. Only app-recorded matches are listed below.</div>';
+    }
+    var ms = data.matches || [];
+    if(!ms.length){
+      html += '<div class="standings-empty">No verified matches recorded in the app for this player yet.</div>';
+    }
+    html += ms.map(function(m){
+      var lost = (m.fp || 0) - (m.fw || 0);
+      var frames = (m.frames || []);
+      var framesHtml;
+      if(frames.length){
+        framesHtml = frames.map(function(f){
+          var opp, res, cls;
+          if(f.wo){
+            opp = '<span class="player-frame__wo">No opponent (walkover)</span>';
+            res = 'Walkover win'; cls = 'wo';
+          } else {
+            opp = escapeHtml(f.opp || 'Unknown');
+            res = f.won ? 'Won' : 'Lost'; cls = f.won ? 'won' : 'lost';
+          }
+          return '<div class="player-frame">' +
+            '<div class="player-frame__opp"><span class="player-frame__pos">' + escapeHtml(f.oppPos) + '</span>' + opp + '</div>' +
+            '<div class="player-frame__res ' + cls + '">' + res + '</div>' +
+          '</div>';
+        }).join('');
+      } else {
+        framesHtml = '<div class="player-frames-missing">Frame-by-frame detail is not available for this match.</div>';
+      }
+      return '<div class="player-match">' +
+        '<div class="player-match__head">' +
+          '<div>' +
+            '<div class="player-match__date">' + escapeHtml(fmtMatchDate(m.date)) + '</div>' +
+            '<div class="player-match__teams">' + escapeHtml(m.team) + ' vs ' + escapeHtml(m.opp) + '</div>' +
+            '<div class="player-match__ha">' + (m.home ? 'Home' : 'Away') + (m.pos ? ' &middot; position ' + escapeHtml(m.pos) : '') + '</div>' +
+          '</div>' +
+          '<div class="player-match__score">' +
+            '<div class="player-match__final">' + m.teamScore + '&ndash;' + m.oppScore +
+              '<span class="player-chip ' + escapeHtml(m.result) + '">' + escapeHtml(m.result) + '</span></div>' +
+            '<div class="player-match__night">Player: <strong>' + m.fw + '&ndash;' + lost + '</strong></div>' +
+          '</div>' +
+        '</div>' +
+        framesHtml +
+      '</div>';
+    }).join('');
+    body.innerHTML = html;
+    wirePlayerBack(body);
   }
 
   // ============ EXCEL EXPORT ============
