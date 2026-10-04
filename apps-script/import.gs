@@ -628,3 +628,5 @@ function impPruneTeamCodes_(ss, teams) {
   }
   return removed;
 }
+
+var GNPA_VER_IMPORT = 'e6e97898';

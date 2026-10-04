@@ -44,3 +44,5 @@ function syncGnpaTabColors() {
   });
   Logger.log('done, ' + changes + ' tab(s) recoloured');
 }
+
+var GNPA_VER_COLORSYNC = 'd4ab39b1';

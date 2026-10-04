@@ -444,3 +444,5 @@ function colByHeader_(sheet, headerName) {
   }
   return 0;
 }
+
+var GNPA_VER_MANAGER = '19c49f60';

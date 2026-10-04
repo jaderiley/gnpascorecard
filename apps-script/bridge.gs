@@ -102,3 +102,5 @@ function handleBridge(data) {
 
   return { ok: false, message: 'unknown op: ' + op };
 }
+
+var GNPA_VER_BRIDGE = 'ee801288';

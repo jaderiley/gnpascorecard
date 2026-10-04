@@ -115,3 +115,5 @@ function compactAllLeagues() {
 
   reportSetup_('Compact blank rows\n\n' + lines.join('\n'));
 }
+
+var GNPA_VER_COMPACT = 'da901626';

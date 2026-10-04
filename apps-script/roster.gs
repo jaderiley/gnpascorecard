@@ -441,3 +441,5 @@ function setupAllRosters() {
   });
   SpreadsheetApp.getUi().alert('Player rosters set up:\n\n' + report.join('\n'));
 }
+
+var GNPA_VER_ROSTER = '7d308398';

@@ -174,6 +174,12 @@ function doGet(e) {
       try { cache.put(cacheKey, payload, 1200); } catch (cacheErr) { /* ignore */ }
       return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
     }
+    if (params.action === 'playerMatches') {
+      return getPlayerMatchesResponse_(params);  // player.gs
+    }
+    if (params.action === 'version') {
+      return jsonResponse({ ok: true, versions: getBackendVersions() });  // version.gs
+    }
     if (params.action === 'leagues') {
       var cache = CacheService.getScriptCache();
       var cached = cache.get('leagues');
@@ -586,7 +592,27 @@ function invalidateLeagueCaches_(leagueName) {
     // let any per-team entries age out on their own (they are read-only
     // typo-detection hints, never used to gate a submission).
     cache.remove('knownNames:' + leagueName + ':');
+    // Per-player match history (player.gs) is keyed per team+player, so it
+    // cannot be enumerated; bump the league generation counter that is part
+    // of every such key and the old entries are simply never read again.
+    cache.put('gen:' + leagueName, String(new Date().getTime()), 21600);
   } catch (e) { /* cache is best-effort — never break a write over it */ }
+}
+
+// Frames won per side for every match, keyed by Submitted timestamp. Walkover
+// rows count for the side that got them, exactly as the app scored them.
+function frameScoresByMatch_(ss) {
+  var out = {};
+  var sh = ss.getSheetByName(FRAMES_TAB);
+  if (!sh || sh.getLastRow() < 2) return out;
+  sh.getRange(2, 1, sh.getLastRow() - 1, FRAMES_HEADERS.length).getValues().forEach(function (r) {
+    if (r[0] === '' || r[0] === null) return;
+    var k = formatTimestamp(r[0]);
+    if (!out[k]) out[k] = { h: 0, a: 0 };
+    if (r[12] === 'Home') out[k].h++;
+    else if (r[12] === 'Away') out[k].a++;
+  });
+  return out;
 }
 
 function rebuildTeamStandings(ss, leagueName) {
@@ -596,6 +622,7 @@ function rebuildTeamStandings(ss, leagueName) {
   // 2. Read live match data
   var matchesSheet = ss.getSheetByName(MATCHES_TAB);
   var teams = {};
+  var frameScores = frameScoresByMatch_(ss);
 
   if (matchesSheet && matchesSheet.getLastRow() >= 2) {
     var data = matchesSheet.getRange(2, 1, matchesSheet.getLastRow() - 1, MATCHES_HEADERS.length).getValues();
@@ -603,6 +630,12 @@ function rebuildTeamStandings(ss, leagueName) {
       if (row[12] !== true) return;
       var home = row[4], away = row[5];
       var hScore = Number(row[8]) || 0, aScore = Number(row[9]) || 0;
+      // The frames are the record; the typed Home/Away Score cells are not.
+      // A hand-edited score (Ladies 2026-10-01: 23-13 typed vs 23-12 frames)
+      // must not reach the standings. Juniors keeps the typed score: it is
+      // race points, and unfinished games add points without a frame row.
+      var fs = frameScores[formatTimestamp(row[0])];
+      if (fs && String(row[3]) !== 'juniors') { hScore = fs.h; aScore = fs.a; }
       var totalUnitsInMatch = hScore + aScore;
 
       [
@@ -935,3 +968,5 @@ function rebuildAllStandings() {
   });
   SpreadsheetApp.getUi().alert('Standings rebuild done:\n\n' + report.join('\n'));
 }
+
+var GNPA_VER_CODE = 'd49a6539';

@@ -260,3 +260,5 @@ function cleanup_selftest() {
   Logger.log(out.join('\n'));
   return out.join('\n');
 }
+
+var GNPA_VER_CLEANUP = '2fb35214';

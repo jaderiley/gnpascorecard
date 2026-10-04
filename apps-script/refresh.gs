@@ -189,3 +189,5 @@ function reportSetup_(msg) {
     Logger.log(msg);
   }
 }
+
+var GNPA_VER_REFRESH = '0f6dd619';
