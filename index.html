@@ -733,8 +733,9 @@
     return !!(arr && arr[idx]);
   }
 
-  // Rotation-format frame status. Walkover frames count for the TEAM score
-  // only — neither player's personal frames include them.
+  // Rotation-format frame status. A walkover frame counts for the team score
+  // AND as a win for the present player (see playerWins); the absent slot
+  // gets no stats at all.
   // 'normal' = both players present · 'woH'/'woA' = home/away wins by walkover
   // · 'void' = no player on either side, frame not played at all.
   function frameStatus(i, j){
@@ -809,16 +810,22 @@
       return {w:w,l:l};
     }
 
+    // A walkover frame (opponent slot empty) counts as a win + a frame played
+    // for the player who was present (league ruling 2026-10-04).
     if(side==='H'){
       for(var j=0;j<n;j++){
-        if(frameStatus(idx, j) !== 'normal') continue;
+        var st = frameStatus(idx, j);
+        if(st === 'woH'){ w++; continue; }
+        if(st !== 'normal') continue;
         var r = state.results[idx] && state.results[idx][j];
         if(r==='H') w++;
         else if(r==='A') l++;
       }
     } else {
       for(var i=0;i<n;i++){
-        if(frameStatus(i, idx) !== 'normal') continue;
+        var st = frameStatus(i, idx);
+        if(st === 'woA'){ w++; continue; }
+        if(st !== 'normal') continue;
         var r = state.results[i] && state.results[i][idx];
         if(r==='A') w++;
         else if(r==='H') l++;
@@ -2353,7 +2360,7 @@
     app.innerHTML = headerHtml('grid') +
       '<div class="grid-help">Tap a cell: home → away → clear</div>' +
       '<div class="grid-wrap"><table class="result-grid"><thead><tr><th></th>' + headerCells + '<th style="font-size:11px;opacity:0.7;">W</th></tr></thead><tbody>' + rowsHtml + '<tr><td class="total-cell" style="font-weight:600;">W</td>' + awayTotals + '<td></td></tr></tbody></table></div>' +
-      '<div class="legend"><span><span class="legend-dot" style="background:#5a8dee;"></span>home win</span><span><span class="legend-dot" style="background:#d4a64a;"></span>away win</span><span><span class="legend-dot" style="background:#6e6e73;"></span>unplayed</span><span><span class="legend-dot" style="background:#6e6e73;opacity:0.45;"></span>walkover (team score only)</span></div>';
+      '<div class="legend"><span><span class="legend-dot" style="background:#5a8dee;"></span>home win</span><span><span class="legend-dot" style="background:#d4a64a;"></span>away win</span><span><span class="legend-dot" style="background:#6e6e73;"></span>unplayed</span><span><span class="legend-dot" style="background:#6e6e73;opacity:0.45;"></span>walkover (win to present player)</span></div>';
 
     bindTabs();
     var cells = app.querySelectorAll('td[data-cell]');
@@ -2564,12 +2571,12 @@
       lines.push('Home players:');
       for(var i=0;i<homeRows.length;i++){
         var hr = homeRows[i];
-        lines.push('  ' + hr.L + ' ' + hr.name + (hr.w === null ? ' (walkover — frames to opponents, no player stats)' : ': ' + hr.w + 'W ' + hr.l + 'L'));
+        lines.push('  ' + hr.L + ' ' + hr.name + (hr.w === null ? ' (walkover — frames to opponents)' : ': ' + hr.w + 'W ' + hr.l + 'L'));
       }
       lines.push('Away players:');
       for(var i=0;i<awayRows.length;i++){
         var ar = awayRows[i];
-        lines.push('  ' + ar.L + ' ' + ar.name + (ar.w === null ? ' (walkover — frames to opponents, no player stats)' : ': ' + ar.w + 'W ' + ar.l + 'L'));
+        lines.push('  ' + ar.L + ' ' + ar.name + (ar.w === null ? ' (walkover — frames to opponents)' : ': ' + ar.w + 'W ' + ar.l + 'L'));
       }
       var txt = lines.join('\n');
       var status = app.querySelector('#export-status');
