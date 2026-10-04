@@ -108,4 +108,3 @@ function seedLadies2026() {
   return report;
 }
 
-var GNPA_VER_SEED_LADIES_2026 = 'e228d846';

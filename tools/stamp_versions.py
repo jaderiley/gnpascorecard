@@ -33,8 +33,15 @@ def var_name(path):
     return "GNPA_VER_" + re.sub(r"[^A-Za-z0-9]+", "_", path.stem).upper()
 
 
+# One-off utilities whose live copies are run by hand and have drifted from the
+# repo on purpose (checked 2026-10-04). They are not part of the web app, so
+# they are not stamped or tracked; never paste them over the live versions.
+ONE_OFFS = {"colorsync.gs", "seed_ladies_2026.gs"}
+
+
 def gs_files():
-    return sorted(GS_DIR.glob("*.gs"), key=lambda p: p.name.lower())
+    return sorted((p for p in GS_DIR.glob("*.gs") if p.name not in ONE_OFFS),
+                  key=lambda p: p.name.lower())
 
 
 def digest(text):

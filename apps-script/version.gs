@@ -19,14 +19,12 @@ function getBackendVersions() {
     'bridge.gs': function () { return typeof GNPA_VER_BRIDGE !== 'undefined' ? GNPA_VER_BRIDGE : 'missing'; },
     'cleanup.gs': function () { return typeof GNPA_VER_CLEANUP !== 'undefined' ? GNPA_VER_CLEANUP : 'missing'; },
     'Code.gs': function () { return typeof GNPA_VER_CODE !== 'undefined' ? GNPA_VER_CODE : 'missing'; },
-    'colorsync.gs': function () { return typeof GNPA_VER_COLORSYNC !== 'undefined' ? GNPA_VER_COLORSYNC : 'missing'; },
     'compact.gs': function () { return typeof GNPA_VER_COMPACT !== 'undefined' ? GNPA_VER_COMPACT : 'missing'; },
     'import.gs': function () { return typeof GNPA_VER_IMPORT !== 'undefined' ? GNPA_VER_IMPORT : 'missing'; },
     'manager.gs': function () { return typeof GNPA_VER_MANAGER !== 'undefined' ? GNPA_VER_MANAGER : 'missing'; },
     'player.gs': function () { return typeof GNPA_VER_PLAYER !== 'undefined' ? GNPA_VER_PLAYER : 'missing'; },
     'refresh.gs': function () { return typeof GNPA_VER_REFRESH !== 'undefined' ? GNPA_VER_REFRESH : 'missing'; },
     'roster.gs': function () { return typeof GNPA_VER_ROSTER !== 'undefined' ? GNPA_VER_ROSTER : 'missing'; },
-    'seed_ladies_2026.gs': function () { return typeof GNPA_VER_SEED_LADIES_2026 !== 'undefined' ? GNPA_VER_SEED_LADIES_2026 : 'missing'; },
     'version.gs': function () { return typeof GNPA_VER_VERSION !== 'undefined' ? GNPA_VER_VERSION : 'missing'; }
   };
   // END GNPA_VER_NAMES
@@ -36,4 +34,4 @@ function getBackendVersions() {
   return out;
 }
 
-var GNPA_VER_VERSION = '0aacdb5d';
+var GNPA_VER_VERSION = '2434ce80';
