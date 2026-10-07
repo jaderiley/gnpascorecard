@@ -1398,25 +1398,35 @@
       return;
     }
 
-    body.innerHTML = '<div class="standings-loading">Loading ' + escapeHtml(standingsView.league) + ' standings...</div>';
+    // Pin the league this request is for. The user can switch leagues while a
+    // slow request is in flight; caching under standingsView.league at reply
+    // time filed Super North's table under "Tshwane" (found 2026-10-07).
+    var league = standingsView.league;
+    body.innerHTML = '<div class="standings-loading">Loading ' + escapeHtml(league) + ' standings...</div>';
+    fetchStandings(league, 3).then(function(res){
+      if(res.data) standingsCache.byLeague[league] = res.data;
+      var cur = document.getElementById('standings-body');
+      if(!cur || standingsView.league !== league) return;
+      if(res.data) renderStandingsTable(cur, res.data);
+      else cur.innerHTML = '<div class="standings-empty">' + escapeHtml(res.error) + '</div>';
+    });
+  }
 
-    fetch(LEAGUE_ENDPOINT + '?action=standings&league=' + encodeURIComponent(standingsView.league), { method: 'GET' })
+  // Apps Script now and then answers with a Google HTML error page instead of
+  // JSON; one retry almost always succeeds, so retry before showing an error.
+  function fetchStandings(league, tries){
+    return fetch(LEAGUE_ENDPOINT + '?action=standings&league=' + encodeURIComponent(league), { method: 'GET' })
       .then(function(res){ return res.text(); })
       .then(function(txt){
-        try {
-          var data = JSON.parse(txt);
-          if(data && data.ok){
-            standingsCache.byLeague[standingsView.league] = { teams: data.teams || [], players: data.players || [] };
-            renderStandingsTable(body, standingsCache.byLeague[standingsView.league]);
-            return;
-          }
-          body.innerHTML = '<div class="standings-empty">' + escapeHtml(data && data.message || 'Could not load standings.') + '</div>';
-        } catch(e){
-          body.innerHTML = '<div class="standings-empty">Could not parse server response.</div>';
-        }
+        var data;
+        try { data = JSON.parse(txt); } catch(e){ data = null; }
+        if(data && data.ok) return { data: { teams: data.teams || [], players: data.players || [] } };
+        if(data) return { error: data.message || 'Could not load standings.' };
+        throw new Error('Could not read the server response.');
       })
       .catch(function(err){
-        body.innerHTML = '<div class="standings-empty">Network error: ' + escapeHtml(err.message) + '</div>';
+        if(tries > 1) return fetchStandings(league, tries - 1);
+        return { error: 'Could not load standings (' + err.message + '). Try again in a minute.' };
       });
   }
 
