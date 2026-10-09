@@ -21,59 +21,59 @@ function seedLadies2026() {
 
   // [team, code, [ [player, isCaptain], ... ] ]
   var TEAMS = [
-    ["Crucibles Blazing 8's", '7900', [
+    ["Crucibles Blazing 8's", 'REDACTED', [
       ['Letitia Calitz', false], ['Alex Fourie', false], ['Michelle Human', true],
       ['Mellanie Ann Uys', false], ['Suné Poolman', false], ['Cameron Marais', false]]],
-    ['Musketeers Funky Chicks', '2346', [
+    ['Musketeers Funky Chicks', 'REDACTED', [
       ['Ramona Maré', true], ['Martie Botes', false], ['Salma Ally', false],
       ['Chevonne Lyth', false], ['Doreen du Toit', false], ['Igerdine Gaabusi', false]]],
-    ['Musketeers Terminators', '2665', [
+    ['Musketeers Terminators', 'REDACTED', [
       ['Wanita Maritz', true], ['Lucindy Ferreira', false], ['Sandy De Klerk', false],
       ['Adaleen Naidoo', false], ['Sinazo Nxedlana', false], ['Celeste Brown', false],
       ['Lauren Afrika', false]]],
-    ['OBS Mafia', '9923', [
+    ['OBS Mafia', 'REDACTED', [
       ['Chantelle Penny', false], ['Waltraut Bothma', true], ['Esmari Le Grange', false],
       ['Antoinette Penny', false], ['Laurette le Roux', false], ['Carina Penny', false]]],
-    ['OB Flawless Force', '5141', [
+    ['OB Flawless Force', 'REDACTED', [
       ['Vonnett Murray', true], ['Martie Jansen', false], ['Vinette Nel', false],
       ['Sonette Martin', false], ['Nomoya Dladla', false], ['Lizel Hartzenberg', false]]],
-    ['OB Chicks with Sticks', '4133', [
+    ['OB Chicks with Sticks', 'REDACTED', [
       ['Nicole Spengler', true], ['Leticia Grobler', false], ['Simoné Grobbelaar', false],
       ['Tanika Jonck', false], ['Suanét Esterhuizen', false], ['Chantel Rossouw', false]]],
-    ['OB Cue Catz', '2669', [
+    ['OB Cue Catz', 'REDACTED', [
       ['Clarissa Koen', false], ['Angelique Potgieter', false], ['Colleen van Rooyen', false],
       ['Simoné van Deemter', false], ['Mari Potgieter', false], ['Cait-Lynn van der Walt', true]]],
-    ['Legends Bitch Squad', '6889', [
+    ['Legends Bitch Squad', 'REDACTED', [
       ['Ulindie Bruwer', true], ['Roma Breetzke', false], ['Daleen von Gordon', false],
       ['Theresa Senekal', false], ['Marlise van Zyl', false], ['Ella Jacobs', false]]],
-    ['Legends Cherries on Fire', '8235', [
+    ['Legends Cherries on Fire', 'REDACTED', [
       ['Caroline de Beer', true], ['Lianie Terblanche', false], ['Franci Henning', false],
       ['Anastasia Bezuidenhout', false], ['Delmarie Lessing-Venter', false], ['Jaqueline Jacobs', false]]],
-    ['Legends Dreamers', '2542', [
+    ['Legends Dreamers', 'REDACTED', [
       ['Moya de Bruto', false], ['Shjantell-Meri Lee', false], ['Bonita Bernice du Plessis', false],
       ['Natasha Reid', false], ['Leandre de Lange', false], ['Judy Grundling', true]]],
-    ['Legends Ladypool', '8717', [
+    ['Legends Ladypool', 'REDACTED', [
       ['Lynette van Stryp', true], ['Truda Brummelkamp', false], ['Lindy van der Merwe', false],
       ['Enid du Plessis', false], ['DelMarie Snyman', false], ['Patricia van der Walt', false]]],
-    ['Legends Silly Shots', '3877', [
+    ['Legends Silly Shots', 'REDACTED', [
       ['Susan Booyens', true], ['Retha Steyn', false], ['Arlene Deysel', false],
       ['Tanja Saunders', false], ['Annelise Roos', false], ['Cheri van Staden', false]]],
-    ['Legends Pooligans 2.0', '4032', [
+    ['Legends Pooligans 2.0', 'REDACTED', [
       ['Shantel van Staden', true], ['Debby van der Vyver', false], ['Zeandra Crafford', false],
       ['Chané vd Westhuizen', false], ['Nicole Redelinghuys', false], ['Chantelle Pieterse', false]]],
-    ['Legends Ubuntu', '9938', [
+    ['Legends Ubuntu', 'REDACTED', [
       ['Cindi van Staden', true], ['Kaylynne van Staden', false], ['Patrys Rossouw', false],
       ['Renette le Roux', false], ['Chené Grace', false], ['Charlotte Grace', false]]],
-    ['Legends Angels', '2450', [
+    ['Legends Angels', 'REDACTED', [
       ['Madelein Viljoen', true], ['Charney Bahré', false], ['Sendra Bulunga', false],
       ['Leandri Hawkins', false], ['Wanita van Heerden', false], ['Lynnique Botha', false]]],
-    ['Legends Queens', '6728', [
+    ['Legends Queens', 'REDACTED', [
       ['Amanda Pretorius', true], ['Shirley de Beer', false], ['Annalize Vermaak', false],
       ['Yolandie Hands', false], ['Leonie van den Berg', false], ['Marlize Lourens', false]]],
-    ['Legends Obsidian Queens', '9239', [
+    ['Legends Obsidian Queens', 'REDACTED', [
       ['Avalon Uitzinger', false], ['Marissa Hattingh', false], ['Benette Hattingh', false],
       ['Jackie van der Westhuizen', false], ['Thato Legodi', false], ['Stephanie Pass', true]]],
-    ['Legends Drinkerbells', '6218', [
+    ['Legends Drinkerbells', 'REDACTED', [
       ['Christine Venter', true], ['Zelda Delport', false], ['Amina Taffa', false],
       ['Genna Abdulrahim', false], ['Myrinda Lemmer', false], ['Mika Terbalance', false]]]
   ];
